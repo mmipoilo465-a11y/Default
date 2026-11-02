@@ -1397,12 +1397,14 @@ function openDigest(report) {
 }
 
 /* ============ 12. ЭКСПОРТ / ИМПОРТ ============ */
+// Внутри встроенного окна (iframe) скачивание файлов запрещено — там оставляем только копирование.
+const EMBEDDED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 function openExport() {
   const json = JSON.stringify(S, null, 2);
   openModal(`${modalHead('Экспорт в JSON', 'Скопируй текст или скачай файл, затем импортируй на другом устройстве')}
     <textarea class="input code" id="ex-json" readonly>${esc(json)}</textarea>
-    <p class="dim" style="font-size:12px;margin-top:8px">В окне предпросмотра скачивание может быть заблокировано браузером. Копирование работает всегда.</p>
-    <div class="flex flex-wrap justify-end gap-2" style="margin-top:14px"><button class="btn" id="ex-dl">Скачать файл</button><button class="btn primary" id="ex-copy">Копировать</button></div>`, {
+    <p class="dim" style="font-size:12px;margin-top:8px">${EMBEDDED ? 'Скопируй JSON и сохрани его в файл или заметку. На другом устройстве вставь его в «Импорт JSON».' : 'Можно скопировать текст или скачать файл.'}</p>
+    <div class="flex flex-wrap justify-end gap-2" style="margin-top:14px">${EMBEDDED ? '' : '<button class="btn" id="ex-dl">Скачать файл</button>'}<button class="btn primary" id="ex-copy">Копировать</button></div>`, {
     wide: true,
     onMount: m => {
       const ta = m.querySelector('#ex-json');
@@ -1410,7 +1412,7 @@ function openExport() {
         const fallback = () => { ta.focus(); ta.select(); toast('Текст выделен: нажми Ctrl+C / ⌘C', 'info'); };
         try { navigator.clipboard.writeText(json).then(() => toast('JSON скопирован в буфер обмена', 'good'), fallback); } catch (e) { fallback(); }
       };
-      m.querySelector('#ex-dl').onclick = () => {
+      if (m.querySelector('#ex-dl')) m.querySelector('#ex-dl').onclick = () => {
         try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' })); a.download = `vibe-tracker-${todayKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); }
         catch (e) { toast('Скачивание недоступно, используй копирование', 'bad'); }
       };
