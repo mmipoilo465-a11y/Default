@@ -1,0 +1,22 @@
+{
+  "name": "Вайб-Трекер Привычек 2.0",
+  "short_name": "Вайб-Трекер",
+  "description": "Геймифицированный трекер привычек: XP, HP, магазин наград, аналитика и прогнозы",
+  "lang": "ru",
+  "start_url": "./#today",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08070f",
+  "theme_color": "#08070f",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Сегодня", "url": "./#today" },
+    { "name": "Аналитика", "url": "./#stats" },
+    { "name": "Магазин наград", "url": "./#shop" }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "vibe-tracker",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Вайб-Трекер Привычек 2.0 — исходник артефакта и сборка PWA",
+  "scripts": {
+    "build:pwa": "python3 tools/build_pwa.py"
+  },
+  "devDependencies": {
+    "chart.js": "4.4.1",
+    "tailwindcss": "3.4.17"
+  }
+}

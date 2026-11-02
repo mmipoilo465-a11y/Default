@@ -1,0 +1,1617 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08070f">
+<meta name="description" content="Геймифицированный трекер привычек с аналитикой и прогнозами">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Вайб-Трекер">
+<style>
+  /* Отступы под вырез/полосу статуса: в артефакте их даёт обёртка, здесь задаём сами */
+  :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:#08070f}
+  [hidden]{display:none!important}
+  img{max-width:100%}
+  html{-webkit-tap-highlight-color:transparent}
+</style>
+<link rel="stylesheet" href="tailwind.css">
+<title>Вайб-Трекер 2.0</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<script src="vendor/chart.umd.js"></script>
+<style>
+/* Раскладка: «командный терминал» — липкая панель HUD сверху (уровень/XP/HP/монеты),
+   под ней вкладки; на телефоне вкладки уезжают в нижнюю панель. Одна тёмная тема по запросу. */
+:root{
+  color-scheme: dark;
+  --bg:#08070f;        /* фон «ночного города» */
+  --bg-2:#0d0b19;
+  --panel:#12102a;     /* поверхности панелей */
+  --panel-2:#1a1738;
+  --line:#2b2754;      /* обводки */
+  --grid:rgba(124,112,255,.055);
+  --fg:#eeecff;        /* основной текст */
+  --muted:#a29ecb;     /* вторичный текст */
+  --dim:#6b6797;       /* подписи */
+  --cyan:#29e6ff;      /* XP, основной неон */
+  --magenta:#ff3d8e;   /* HP, урон */
+  --violet:#9d8cff;
+  --amber:#ffc23d;     /* монеты */
+  --lime:#4dffa6;      /* успех */
+  --red:#ff4d5e;       /* срыв */
+  --font-display:'Unbounded','Manrope',system-ui,sans-serif;
+  --font-body:'Manrope',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{min-height:100%}
+body{
+  margin:0;color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.5;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(1100px 560px at 88% -8%, rgba(157,140,255,.17), transparent 60%),
+    radial-gradient(900px 520px at -12% 108%, rgba(255,61,142,.10), transparent 60%),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:auto,auto,44px 44px,44px 44px;
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:41;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+h1,h2,h3,h4,p{margin:0}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px;border-radius:8px}
+.shell{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.display{font-family:var(--font-display);letter-spacing:-.01em}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.muted{color:var(--muted)} .dim{color:var(--dim)}
+h2.sec{font-family:var(--font-display);font-size:18px;font-weight:700;text-wrap:balance}
+h3.card-t{font-family:var(--font-display);font-size:14px;font-weight:700;letter-spacing:.01em}
+
+/* ---------- Верхняя панель / HUD ---------- */
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:40;background:rgba(8,7,15,.84);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.brand{font-family:var(--font-display);font-weight:800;font-size:15px;letter-spacing:.04em;white-space:nowrap}
+.brand b{color:var(--cyan);text-shadow:0 0 14px rgba(41,230,255,.7)}
+.brand sup{font-family:var(--font-mono);font-size:10px;color:var(--magenta);margin-left:3px}
+.lvl{width:46px;height:46px;flex:none;display:grid;place-items:center;position:relative;
+  clip-path:polygon(25% 3%,75% 3%,100% 50%,75% 97%,25% 97%,0 50%);
+  background:linear-gradient(140deg,var(--cyan),var(--violet) 60%,var(--magenta));}
+.lvl::before{content:"";position:absolute;inset:2px;clip-path:inherit;background:var(--bg-2)}
+.lvl span{position:relative;font-family:var(--font-display);font-weight:800;font-size:16px}
+.lvl.bump{animation:bump .7s ease}
+@keyframes bump{30%{transform:scale(1.25) rotate(8deg)}60%{transform:scale(.95)}}
+.bar{height:8px;border-radius:99px;background:rgba(255,255,255,.06);overflow:hidden;position:relative}
+.bar i{display:block;height:100%;border-radius:inherit;transition:width .6s cubic-bezier(.3,.8,.2,1)}
+.bar.xp i{background:linear-gradient(90deg,var(--violet),var(--cyan));box-shadow:0 0 12px rgba(41,230,255,.7)}
+.bar.hp i{background:linear-gradient(90deg,#c1124f,var(--magenta));box-shadow:0 0 12px rgba(255,61,142,.6)}
+.bar.hp.low i{animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.45}}
+.coins{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1px solid rgba(255,194,61,.35);background:rgba(255,194,61,.07);color:var(--amber);font-family:var(--font-mono);font-weight:700}
+.coin{width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3c4,var(--amber) 45%,#b07700);box-shadow:0 0 10px rgba(255,194,61,.7)}
+.tabs{gap:4px}
+.tab{padding:8px 14px;border-radius:10px;font-weight:600;font-size:14px;color:var(--muted);transition:color .2s,background .2s;white-space:nowrap}
+.tab:hover{color:var(--fg);background:rgba(255,255,255,.04)}
+.tab[aria-current="page"]{color:var(--bg);background:var(--cyan);box-shadow:0 0 18px rgba(41,230,255,.45)}
+.iconbtn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;border:1px solid var(--line);color:var(--muted);transition:.2s}
+.iconbtn:hover{color:var(--cyan);border-color:var(--cyan);box-shadow:0 0 14px rgba(41,230,255,.3)}
+.bottomnav{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;justify-content:space-around;
+  background:rgba(8,7,15,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);
+  padding:6px max(8px,env(safe-area-inset-left,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-right,0px))}
+.bottomnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:10px;font-size:11px;color:var(--dim);font-weight:600}
+.bottomnav button svg{width:20px;height:20px}
+.bottomnav button[aria-current="page"]{color:var(--cyan);text-shadow:0 0 10px rgba(41,230,255,.6)}
+@media (min-width:768px){.bottomnav{display:none}}
+main.main{padding-block:24px 110px}
+@media (min-width:768px){main.main{padding-block:28px 60px}}
+
+/* ---------- Панели и кнопки ---------- */
+.panel{background:linear-gradient(180deg,rgba(26,23,56,.82),rgba(14,12,30,.88));border:1px solid var(--line);border-radius:16px;padding:18px;min-width:0}
+.panel.tight{padding:14px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;border-radius:11px;font-weight:700;font-size:14px;transition:transform .12s,box-shadow .2s,background .2s,border-color .2s;border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--fg);white-space:nowrap}
+.btn:hover{border-color:var(--violet);box-shadow:0 0 16px rgba(157,140,255,.25)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--cyan);color:#041018;border-color:var(--cyan);box-shadow:0 0 20px rgba(41,230,255,.35)}
+.btn.primary:hover{box-shadow:0 0 28px rgba(41,230,255,.6)}
+.btn.gold{background:var(--amber);color:#1a1100;border-color:var(--amber)}
+.btn.danger{border-color:rgba(255,77,94,.5);color:var(--red)}
+.btn.danger:hover{background:rgba(255,77,94,.1);box-shadow:0 0 16px rgba(255,77,94,.3)}
+.btn.sm{padding:6px 10px;font-size:12.5px;border-radius:9px}
+.btn[disabled]{opacity:.38;cursor:not-allowed;box-shadow:none}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:99px;font-family:var(--font-mono);font-size:11px;font-weight:500;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--c);box-shadow:0 0 8px var(--c)}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.seg button{padding:5px 11px;border-radius:7px;font-size:12px;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(41,230,255,.4)}
+
+/* ---------- Привычка на «Сегодня» ---------- */
+.hitem{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:rgba(18,16,42,.7);transition:border-color .25s,background .25s,transform .2s}
+.hitem:hover{border-color:color-mix(in srgb,var(--c) 45%,var(--line));transform:translateX(2px)}
+.hitem.is-done{background:linear-gradient(90deg,color-mix(in srgb,var(--c) 11%,transparent),rgba(18,16,42,.6) 70%)}
+.hitem.is-done .hname{color:var(--muted)}
+.hitem.is-slip{border-color:rgba(255,77,94,.5);background:linear-gradient(90deg,rgba(255,77,94,.12),rgba(18,16,42,.6) 70%)}
+.hitem.shake{animation:shake .45s}
+@keyframes shake{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+.hname{font-weight:700;font-size:15px;line-height:1.3;transition:color .25s}
+.hmeta{font-size:12.5px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;margin-top:2px}
+.nchk{--c:var(--cyan);width:42px;height:42px;flex:none;border-radius:12px;border:1.5px solid color-mix(in srgb,var(--c) 60%,transparent);
+  background:color-mix(in srgb,var(--c) 6%,transparent);display:grid;place-items:center;position:relative;transition:transform .15s,box-shadow .25s,background .25s}
+.nchk:hover{box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 12%,transparent),0 0 20px color-mix(in srgb,var(--c) 45%,transparent)}
+.nchk:active{transform:scale(.9)}
+.nchk svg{width:22px;height:22px}
+.nchk svg path{fill:none;stroke:#05101a;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:26;stroke-dashoffset:26;transition:stroke-dashoffset .38s cubic-bezier(.6,0,.2,1) .06s}
+.nchk[aria-pressed="true"]{background:var(--c);box-shadow:0 0 24px color-mix(in srgb,var(--c) 70%,transparent)}
+.nchk[aria-pressed="true"] svg path{stroke-dashoffset:0}
+.nchk.pop{animation:pop .5s cubic-bezier(.3,1.6,.4,1)}
+.nchk.pop::after{content:"";position:absolute;inset:-2px;border-radius:14px;border:2px solid var(--c);animation:ring .6s ease-out forwards}
+@keyframes pop{40%{transform:scale(1.18)}}
+@keyframes ring{to{inset:-16px;opacity:0;border-radius:22px}}
+.slip{padding:8px 12px;border-radius:10px;border:1.5px solid rgba(255,77,94,.45);color:var(--red);font-weight:700;font-size:12.5px;white-space:nowrap;transition:.2s;flex:none}
+.slip:hover{background:rgba(255,77,94,.1);box-shadow:0 0 16px rgba(255,77,94,.35)}
+.slip[aria-pressed="true"]{background:var(--red);color:#1a0206;border-color:var(--red);box-shadow:0 0 22px rgba(255,77,94,.6)}
+.shield{width:42px;height:42px;flex:none;border-radius:12px;display:grid;place-items:center;border:1.5px dashed rgba(77,255,166,.4);color:var(--lime)}
+.hitem.is-slip .shield{border-color:rgba(255,77,94,.6);color:var(--red)}
+.reward{font-family:var(--font-mono);font-size:12px;font-weight:700;color:var(--c);white-space:nowrap}
+.streak{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-mono);font-size:12px;font-weight:700;padding:1px 7px;border-radius:99px;white-space:nowrap}
+.streak.fire{color:var(--amber);background:rgba(255,194,61,.1);box-shadow:0 0 12px rgba(255,194,61,.25)}
+.streak.combo{color:#fff;background:linear-gradient(90deg,rgba(41,230,255,.3),rgba(157,140,255,.35));box-shadow:0 0 14px rgba(41,230,255,.45);animation:flicker 2.4s infinite}
+.streak.plain{color:var(--dim)}
+@keyframes flicker{0%,100%{filter:brightness(1)}48%{filter:brightness(1)}50%{filter:brightness(1.6)}52%{filter:brightness(.9)}}
+
+.ring-wrap{position:relative;width:132px;height:132px;flex:none}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-wrap circle{fill:none;stroke-width:11}
+.ring-bg{stroke:rgba(255,255,255,.06)}
+.ring-fg{stroke:url(#ringGrad);stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.3,.8,.2,1);filter:drop-shadow(0 0 6px rgba(41,230,255,.6))}
+.ring-label{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+
+/* ---------- Карточки привычек ---------- */
+.hcard{border-radius:16px;border:1px solid var(--line);background:linear-gradient(160deg,color-mix(in srgb,var(--c) 7%,rgba(26,23,56,.85)),rgba(14,12,30,.9) 55%);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0;transition:border-color .25s,box-shadow .25s}
+.hcard:hover{border-color:color-mix(in srgb,var(--c) 50%,var(--line));box-shadow:0 0 26px color-mix(in srgb,var(--c) 14%,transparent)}
+.wdays{display:flex;gap:3px}
+.wdays span{width:24px;height:22px;display:grid;place-items:center;border-radius:6px;font-family:var(--font-mono);font-size:10.5px;color:var(--dim);background:rgba(255,255,255,.03)}
+.wdays span.on{color:#05101a;background:var(--c);font-weight:700}
+.mini{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
+.mini i{height:14px;border-radius:3px;background:rgba(255,255,255,.05)}
+.mini i.ok{background:var(--c);box-shadow:0 0 6px color-mix(in srgb,var(--c) 60%,transparent)}
+.mini i.miss{background:rgba(255,77,94,.35)}
+.mini i.off{background:transparent;border:1px dashed rgba(255,255,255,.06)}
+.kv{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.kv div{min-width:0}
+.kv b{display:block;font-family:var(--font-mono);font-size:15px;font-variant-numeric:tabular-nums}
+.kv small{font-size:11px;color:var(--dim)}
+
+/* ---------- Аналитика ---------- */
+.kpi b{font-family:var(--font-display);font-size:26px;font-weight:700;display:block;line-height:1.15;font-variant-numeric:tabular-nums}
+.delta{font-family:var(--font-mono);font-size:12px;font-weight:700}
+.delta.up{color:var(--lime)} .delta.down{color:var(--red)}
+.chart-box{position:relative;height:260px}
+.chart-box.tall{height:300px}
+.grid-wrap{overflow-x:auto;padding-bottom:4px}
+.agrid{display:grid;grid-template-rows:repeat(7,15px);grid-auto-flow:column;grid-auto-columns:15px;gap:4px}
+.agrid .cell{border-radius:4px;background:#1a1733;transition:transform .15s}
+.agrid .cell:hover{transform:scale(1.35);outline:1px solid var(--fg);z-index:2}
+.agrid .cell.none{background:transparent;border:1px dashed rgba(255,255,255,.05)}
+.agrid .cell.future{background:transparent}
+.agrid .cell.l1{background:rgba(41,230,255,.2)}
+.agrid .cell.l2{background:rgba(41,230,255,.42)}
+.agrid .cell.l3{background:rgba(41,230,255,.68)}
+.agrid .cell.l4{background:var(--cyan);box-shadow:0 0 8px rgba(41,230,255,.75)}
+.agrid .cell.today{outline:1.5px solid var(--magenta);outline-offset:1px}
+.glabels{display:grid;grid-template-rows:repeat(7,15px);gap:4px;font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+.mlabels{display:grid;grid-auto-flow:column;grid-auto-columns:15px;gap:4px;font-family:var(--font-mono);font-size:10px;color:var(--dim);height:14px}
+.mlabels span{white-space:nowrap;overflow:visible}
+.legend-steps{display:flex;gap:4px;align-items:center}
+.legend-steps i{width:12px;height:12px;border-radius:3px;display:block}
+.insight{display:flex;gap:12px;padding:12px 0;border-top:1px solid rgba(43,39,84,.7)}
+.insight:first-child{border-top:0;padding-top:0}
+.phi{width:54px;flex:none;text-align:right}
+.phi-bar{height:5px;border-radius:9px;background:rgba(255,255,255,.06);margin-top:6px;overflow:hidden}
+.phi-bar i{display:block;height:100%;border-radius:9px}
+.strength{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+
+/* ---------- Магазин ---------- */
+.rcard{border:1px solid var(--line);border-radius:16px;padding:16px;background:linear-gradient(180deg,rgba(26,23,56,.8),rgba(14,12,30,.9));display:flex;flex-direction:column;gap:10px;position:relative;transition:transform .2s,border-color .2s,box-shadow .2s;min-width:0}
+.rcard:hover{transform:translateY(-3px);border-color:rgba(255,194,61,.5);box-shadow:0 10px 30px rgba(255,194,61,.12)}
+.ricon{font-size:30px;line-height:1}
+.rcost{font-family:var(--font-mono);font-weight:700;color:var(--amber);display:flex;align-items:center;gap:6px}
+.rdel{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:8px;color:var(--dim);display:grid;place-items:center}
+.rdel:hover{color:var(--red);background:rgba(255,77,94,.1)}
+
+/* ---------- Формы ---------- */
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.flabel{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.02em}
+.input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:rgba(8,7,15,.7);transition:border-color .2s,box-shadow .2s}
+.input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(41,230,255,.15)}
+textarea.input{resize:vertical;min-height:70px}
+textarea.code{font-family:var(--font-mono);font-size:11.5px;min-height:220px;line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{position:relative}
+.chip input{position:absolute;opacity:0;pointer-events:none}
+.chip span{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;transition:.2s}
+.chip span:hover{border-color:var(--violet)}
+.chip input:checked + span{color:var(--fg);border-color:var(--c,var(--cyan));background:color-mix(in srgb,var(--c,var(--cyan)) 14%,transparent);box-shadow:0 0 14px color-mix(in srgb,var(--c,var(--cyan)) 30%,transparent)}
+.chip input:focus-visible + span{outline:2px solid var(--cyan);outline-offset:2px}
+.switch{display:flex;align-items:center;gap:12px;cursor:pointer}
+.switch input{position:absolute;opacity:0}
+.switch .track{width:46px;height:26px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid var(--line);position:relative;transition:.25s;flex:none}
+.switch .track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--muted);transition:.25s}
+.switch input:checked + .track{background:rgba(255,77,94,.25);border-color:var(--red)}
+.switch input:checked + .track::after{left:23px;background:var(--red);box-shadow:0 0 10px var(--red)}
+.switch.cyan input:checked + .track{background:rgba(41,230,255,.2);border-color:var(--cyan)}
+.switch.cyan input:checked + .track::after{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.switch input:focus-visible + .track{outline:2px solid var(--cyan);outline-offset:2px}
+.err{color:var(--red);font-size:12.5px;font-weight:600}
+
+/* ---------- Модальные окна, тосты, эффекты ---------- */
+.overlay{position:fixed;inset:0;z-index:60;background:rgba(4,3,10,.72);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));animation:fade .2s}
+@media (min-width:640px){.overlay{align-items:center}}
+.modal{width:100%;max-width:560px;max-height:100%;overflow:auto;border-radius:20px;border:1px solid var(--line);background:linear-gradient(180deg,#191638,#0e0c1f);box-shadow:0 0 0 1px rgba(41,230,255,.08),0 30px 80px rgba(0,0,0,.6),0 0 60px rgba(157,140,255,.15);padding:22px;animation:rise .28s cubic-bezier(.2,.9,.3,1.1)}
+.modal.wide{max-width:680px}
+@keyframes fade{from{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(24px) scale(.98)}}
+.digest-hero{border-radius:14px;padding:16px;background:linear-gradient(120deg,rgba(41,230,255,.12),rgba(157,140,255,.1) 50%,rgba(255,61,142,.1));border:1px solid rgba(41,230,255,.25)}
+.toasts{position:fixed;z-index:70;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(92vw,420px)}
+@media (min-width:768px){.toasts{bottom:calc(24px + env(safe-area-inset-bottom,0px))}}
+.toast{pointer-events:auto;padding:11px 16px;border-radius:12px;background:#17143a;border:1px solid var(--line);box-shadow:0 10px 30px rgba(0,0,0,.5);font-weight:600;font-size:14px;animation:rise .25s;display:flex;gap:10px;align-items:center;max-width:100%}
+.toast.good{border-color:rgba(77,255,166,.5);box-shadow:0 0 20px rgba(77,255,166,.2)}
+.toast.bad{border-color:rgba(255,77,94,.6);box-shadow:0 0 20px rgba(255,77,94,.25)}
+.toast.gold{border-color:rgba(255,194,61,.6);box-shadow:0 0 22px rgba(255,194,61,.25)}
+.toast.out{opacity:0;transform:translateY(8px);transition:.3s}
+.float{position:fixed;z-index:65;pointer-events:none;font-family:var(--font-mono);font-weight:800;font-size:14px;animation:floatUp 1s ease-out forwards;text-shadow:0 0 10px currentColor}
+@keyframes floatUp{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-46px)}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:66;width:100%;height:100%}
+.banner{border-bottom:1px solid rgba(255,194,61,.3);background:linear-gradient(90deg,rgba(255,194,61,.1),rgba(255,61,142,.06))}
+.empty{border:1.5px dashed var(--line);border-radius:16px;padding:28px 20px;text-align:center}
+.feed li{display:flex;gap:10px;padding:7px 0;border-top:1px solid rgba(43,39,84,.6);font-size:13px}
+.feed li:first-child{border-top:0}
+.feed{list-style:none;margin:0;padding:0}
+.view{animation:viewIn .35s ease}
+@keyframes viewIn{from{opacity:.4;transform:translateY(6px)}}
+details summary{cursor:pointer;list-style:none}
+details summary::-webkit-details-marker{display:none}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.tbl td,table.tbl th{padding:7px 8px;border-top:1px solid rgba(43,39,84,.7);text-align:left}
+table.tbl th{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:500;border-top:0}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9d8cff"/><stop offset="1" stop-color="#29e6ff"/></linearGradient></defs>
+</svg>
+
+<header class="topbar">
+  <div class="shell flex items-center gap-3 md:gap-5 py-2.5">
+    <div class="brand hidden sm:block">VIBE<b>//</b>TRACK<sup>2.0</sup></div>
+    <div id="hud" class="flex items-center gap-3 flex-1 min-w-0"></div>
+    <nav class="tabs hidden md:flex" id="tabsTop" aria-label="Разделы"></nav>
+    <button class="iconbtn" data-action="soundToggle" id="soundBtn" aria-label="Звук" title="Звуковые эффекты"></button>
+  </div>
+</header>
+<div id="banner"></div>
+<main class="shell main">
+  <section id="view-today" class="view" hidden></section>
+  <section id="view-habits" class="view" hidden></section>
+  <section id="view-stats" class="view" hidden></section>
+  <section id="view-shop" class="view" hidden></section>
+  <section id="view-data" class="view" hidden></section>
+</main>
+<nav class="bottomnav" id="tabsBottom" aria-label="Разделы"></nav>
+<div id="modalRoot"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<canvas id="fx"></canvas>
+
+<script>
+'use strict';
+/* =====================================================================
+   ВАЙБ-ТРЕКЕР ПРИВЫЧЕК 2.0
+   Структура:
+     1. Константы и конфигурация
+     2. Утилиты дат и форматирования
+     3. Состояние и LocalStorage
+     4. Звук (Web Audio синтезатор)
+     5. Геймификация: XP, уровни, HP, монеты
+     6. Логика привычек: расписание, отметки, стрики
+     7. Ежедневное закрытие дней (штрафы, бонусы)
+     8. Аналитика: статистика, корреляции, прогнозы
+     9. Генератор тестовых данных
+    10. UI: шапка, вкладки, экраны
+    11. Модальные окна и формы
+    12. Экспорт / импорт
+    13. Эффекты (частицы, всплывающий текст, тосты)
+    14. Обработчики событий и запуск
+   ===================================================================== */
+
+/* ============ 1. КОНСТАНТЫ ============ */
+const STORAGE_KEY = 'vibe-tracker-2';
+const MAX_HP = 100;
+const PERFECT_DAY_HEAL = 10;      // регенерация HP за день, закрытый на 100%
+
+/** Сложность определяет награду и урон. antiDmg — урон за срыв анти-привычки,
+    dmg — урон за срыв серии (≥2 дней) обычной привычки. */
+const DIFFICULTY = {
+  easy:   { label: 'Легко',   xp: 10, coins: 5,  dmg: 6,  antiDmg: 8 },
+  medium: { label: 'Средне',  xp: 25, coins: 12, dmg: 12, antiDmg: 15 },
+  hard:   { label: 'Хардкор', xp: 50, coins: 25, dmg: 20, antiDmg: 25 },
+};
+const CATEGORIES = {
+  sport:   { label: 'Спорт',    color: '#ff3d8e' },
+  study:   { label: 'Учёба',    color: '#29e6ff' },
+  health:  { label: 'Здоровье', color: '#4dffa6' },
+  hobby:   { label: 'Хобби',    color: '#ffc23d' },
+  routine: { label: 'Рутина',   color: '#9d8cff' },
+};
+const CAT_KEYS = Object.keys(CATEGORIES);
+const WD_SHORT = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const WD_FULL  = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+const WD_IN    = ['в воскресенье','в понедельник','во вторник','в среду','в четверг','в пятницу','в субботу'];
+const MON_FIRST = [1,2,3,4,5,6,0];
+const MONTHS_GEN = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+const MONTHS_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const REWARD_ICONS = ['🎮','☕','🍕','🎬','🛍️','😴','🎧','🍰','📚','🏖️'];
+const VIEWS = [
+  { id: 'today',  label: 'Сегодня',   icon: '<path d="M5 12l4 4L19 6"/>' },
+  { id: 'habits', label: 'Привычки',  icon: '<path d="M4 6h16M4 12h16M4 18h10"/>' },
+  { id: 'stats',  label: 'Аналитика', icon: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>' },
+  { id: 'shop',   label: 'Магазин',   icon: '<path d="M4 8h16l-1.5 12h-13zM8 8a4 4 0 0 1 8 0"/>' },
+  { id: 'data',   label: 'Данные',    icon: '<path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/>' },
+];
+
+/* ============ 2. УТИЛИТЫ ДАТ И ФОРМАТИРОВАНИЯ ============ */
+// Даты храним строками «ГГГГ-ММ-ДД» в локальном времени: их можно сравнивать как строки.
+const pad = n => String(n).padStart(2, '0');
+const toKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const fromKey = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const addDays = (k, n) => { const d = fromKey(k); d.setDate(d.getDate() + n); return toKey(d); };
+const todayKey = () => toKey(new Date());
+const yesterdayKey = () => addDays(todayKey(), -1);
+const weekday = k => fromKey(k).getDay();
+const daysBetween = (a, b) => Math.round((fromKey(b) - fromKey(a)) / 86400000);
+const weekStart = k => addDays(k, -((weekday(k) + 6) % 7)); // понедельник недели
+function rangeKeys(from, to) { const out = []; let k = from; while (k <= to) { out.push(k); k = addDays(k, 1); } return out; }
+const fmtShort = k => { const d = fromKey(k); return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`; };
+const fmtLong = k => { const d = fromKey(k); return `${WD_FULL[d.getDay()]}, ${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`; };
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const uid = () => Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+/** Русское склонение: plural(5, ['привычка','привычки','привычек']) → «привычек» */
+function plural(n, f) { const a = Math.abs(n) % 100, b = a % 10; if (a > 10 && a < 20) return f[2]; if (b > 1 && b < 5) return f[1]; if (b === 1) return f[0]; return f[2]; }
+const pct = v => `${Math.round(v * 100)}%`;
+
+/* ============ 3. СОСТОЯНИЕ И LOCALSTORAGE ============ */
+/*
+  Модель данных:
+  habits[]  — { id, name, desc, category, difficulty, anti, schedule:{type:'daily'|'days', days:[0..6]},
+                createdAt, archived, archivedAt, pauses:[{from,to}] }
+  log       — { 'ГГГГ-ММ-ДД': { habitId: 1 } }
+              Для обычной привычки 1 = выполнено, для анти-привычки 1 = срыв.
+  profile   — { name, level, xp, hp, coins, totalXp }
+  settings.lastProcessed — последний «закрытый» день (до него начислены штрафы/бонусы)
+*/
+const DEFAULT_REWARDS = () => ([
+  { id: uid(), name: '1 час плойки', cost: 200, icon: '🎮' },
+  { id: uid(), name: 'Кофе из любимой кофейни', cost: 120, icon: '☕' },
+  { id: uid(), name: 'Серия сериала без чувства вины', cost: 80, icon: '🎬' },
+  { id: uid(), name: 'Читмил', cost: 300, icon: '🍕' },
+]);
+function defaultState() {
+  return {
+    version: 2,
+    profile: { name: 'Нетраннер', level: 1, xp: 0, hp: MAX_HP, coins: 0, totalXp: 0 },
+    habits: [], log: {}, rewards: DEFAULT_REWARDS(), purchases: [], events: [],
+    settings: { sound: true, lastDigest: null, lastProcessed: yesterdayKey(), demo: false },
+  };
+}
+let S = null;
+function migrate(o) {
+  const d = defaultState();
+  const s = { ...d, ...o, profile: { ...d.profile, ...(o.profile || {}) }, settings: { ...d.settings, ...(o.settings || {}) } };
+  s.habits = (s.habits || []).map(h => ({ pauses: [], desc: '', anti: false, archived: false, ...h,
+    schedule: h.schedule && h.schedule.type ? h.schedule : { type: 'daily', days: [] } }));
+  s.log = s.log || {}; s.rewards = s.rewards || []; s.purchases = s.purchases || []; s.events = s.events || [];
+  return s;
+}
+function loadState() {
+  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return migrate(JSON.parse(raw)); } catch (e) { /* хранилище недоступно */ }
+  return null;
+}
+function save() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* приватный режим и т.п. */ } }
+function logEvent(type, text) { S.events.unshift({ t: Date.now(), type, text }); S.events.length = Math.min(S.events.length, 40); }
+const byId = id => S.habits.find(h => h.id === id);
+const activeHabits = () => S.habits.filter(h => !h.archived);
+
+/* ============ 4. ЗВУК (Web Audio синтезатор) ============ */
+// Все звуки синтезируются осцилляторами — никаких файлов. AudioContext создаётся
+// при первом клике (браузеры запрещают звук до взаимодействия).
+const Sound = (() => {
+  let ctx = null;
+  function ac() {
+    if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; try { ctx = new C(); } catch (e) { return null; } }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function tone(freq, dur, { type = 'sine', vol = .12, delay = 0, slide = 0 } = {}) {
+    if (!S || !S.settings.sound) return;
+    const c = ac(); if (!c) return;
+    const t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, freq + slide), t + dur);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t + dur + .03);
+  }
+  return {
+    check()    { tone(660, .09, { type: 'square', vol: .05 }); tone(990, .16, { type: 'square', vol: .05, delay: .07 }); },
+    undo()     { tone(520, .14, { type: 'triangle', vol: .08, slide: -260 }); },
+    damage()   { tone(180, .35, { type: 'sawtooth', vol: .1, slide: -110 }); tone(70, .4, { type: 'square', vol: .05, delay: .04 }); },
+    coin()     { tone(988, .08, { type: 'square', vol: .05 }); tone(1319, .3, { type: 'square', vol: .05, delay: .08 }); },
+    streak()   { [784, 988, 1175].forEach((f, i) => tone(f, .12, { type: 'triangle', vol: .08, delay: i * .06 })); },
+    levelUp()  { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, .2, { type: 'square', vol: .055, delay: i * .085 })); tone(1568, .6, { type: 'triangle', vol: .09, delay: .45 }); },
+    levelDown(){ [392, 330, 262, 196].forEach((f, i) => tone(f, .26, { type: 'sawtooth', vol: .06, delay: i * .14 })); },
+    click()    { tone(1200, .03, { type: 'square', vol: .025 }); },
+  };
+})();
+
+/* ============ 5. ГЕЙМИФИКАЦИЯ ============ */
+/** Опыт до следующего уровня растёт линейно: 100, 140, 180, … */
+const xpNeeded = lvl => 100 + (lvl - 1) * 40;
+/** Начисляет (или снимает при отмене) XP, обрабатывая повышение/понижение уровня. */
+function addXP(n, { silent = false } = {}) {
+  const p = S.profile; p.xp += n; p.totalXp = Math.max(0, p.totalXp + n);
+  let ups = 0;
+  while (p.xp >= xpNeeded(p.level)) { p.xp -= xpNeeded(p.level); p.level++; ups++; }
+  while (p.xp < 0) { if (p.level > 1) { p.level--; p.xp += xpNeeded(p.level); } else p.xp = 0; }
+  if (ups && !silent) onLevelUp();
+  return ups;
+}
+const addCoins = n => { S.profile.coins = Math.max(0, S.profile.coins + n); };
+const heal = n => { S.profile.hp = Math.min(MAX_HP, S.profile.hp + n); };
+/** Урон по HP. При 0 HP персонаж «повержен»: уровень −1, опыт сгорает, HP восстанавливается. */
+function damage(n, { silent = false } = {}) {
+  const p = S.profile; p.hp -= n;
+  if (p.hp <= 0) {
+    const had = p.level; if (p.level > 1) p.level--; p.xp = 0; p.hp = MAX_HP;
+    logEvent('death', had > 1 ? `HP упало до нуля. Уровень снижен до ${p.level}` : 'HP упало до нуля. Опыт текущего уровня сгорел');
+    if (!silent) { Sound.levelDown(); toast(had > 1 ? `💀 Персонаж повержен. Уровень ${had} → ${p.level}` : '💀 Персонаж повержен. Опыт уровня сгорел', 'bad'); }
+    return true;
+  }
+  return false;
+}
+function onLevelUp() {
+  logEvent('level', `Новый уровень: ${S.profile.level}`);
+  Sound.levelUp(); confetti(); toast(`⬆ Уровень ${S.profile.level}! Так держать`, 'gold');
+  requestAnimationFrame(() => { const l = document.querySelector('.lvl'); if (l) { l.classList.remove('bump'); void l.offsetWidth; l.classList.add('bump'); } });
+}
+
+/* ============ 6. ЛОГИКА ПРИВЫЧЕК ============ */
+/** Запланирована ли привычка на дату: учитываем дату создания, архив, паузы и дни недели. */
+function isScheduled(h, k) {
+  if (k < h.createdAt) return false;
+  if (h.archived && h.archivedAt && k >= h.archivedAt) return false;
+  if (h.pauses && h.pauses.some(p => k >= p.from && k <= p.to)) return false;
+  return h.schedule.type === 'daily' || h.schedule.days.includes(weekday(k));
+}
+const isMarked = (h, k) => !!(S.log[k] && S.log[k][h.id]);
+/** Успех дня: обычная — отмечена; анти-привычка — НЕ отмечен срыв. */
+const isSuccess = (h, k) => h.anti ? !isMarked(h, k) : isMarked(h, k);
+const habitsOn = (k, list = S.habits) => list.filter(h => isScheduled(h, k));
+
+/** Длина серии, закончившейся в день ПЕРЕД k (идём назад по запланированным дням). */
+function streakEndingBefore(h, k) {
+  let n = 0, d = addDays(k, -1);
+  for (let i = 0; i < 500 && d >= h.createdAt; i++, d = addDays(d, -1)) {
+    if (!isScheduled(h, d)) continue;
+    if (isSuccess(h, d)) n++; else break;
+  }
+  return n;
+}
+/**
+ * Текущий стрик. Сегодняшний день не ломает серию, пока он не закончился:
+ *  - обычная привычка: если сегодня выполнена — +1, иначе просто пропускаем сегодня;
+ *  - анти-привычка: срыв сегодня обнуляет серию, «чистое» сегодня ещё не засчитано.
+ */
+function currentStreak(h) {
+  const t = todayKey();
+  let n = 0;
+  if (isScheduled(h, t)) {
+    if (h.anti && isMarked(h, t)) return 0;
+    if (!h.anti && isMarked(h, t)) n = 1;
+  }
+  return n + streakEndingBefore(h, t);
+}
+/** Исторический рекорд: самая длинная непрерывная серия успешных запланированных дней. */
+function bestStreak(h) {
+  const t = todayKey(); let best = 0, run = 0;
+  for (const k of rangeKeys(h.createdAt, t)) {
+    if (!isScheduled(h, k)) continue;
+    if (k === t && !(h.anti ? false : isMarked(h, k))) { if (h.anti && isMarked(h, k)) run = 0; continue; }
+    if (isSuccess(h, k)) { run++; best = Math.max(best, run); } else run = 0;
+  }
+  return best;
+}
+function streakBadge(n) {
+  if (n >= 10) return `<span class="streak combo" title="Супер-комбо: серия от 10 дней">⚡ ${n}</span>`;
+  if (n >= 3) return `<span class="streak fire" title="В огне: серия от 3 дней">🔥 ${n}</span>`;
+  if (n > 0) return `<span class="streak plain" title="Текущая серия">×${n}</span>`;
+  return '';
+}
+
+/** Отметка привычки. Обычная: +XP/монеты, повторный клик отменяет. Анти: срыв = урон HP. */
+function toggleHabit(id, k, el) {
+  const h = byId(id); if (!h || !isScheduled(h, k)) return;
+  const D = DIFFICULTY[h.difficulty];
+  S.log[k] = S.log[k] || {};
+  const was = isMarked(h, k);
+  const anchor = el || document.body;
+  if (!h.anti) {
+    const before = currentStreak(h);
+    if (!was) {
+      S.log[k][id] = 1; addCoins(D.coins);
+      Sound.check(); floatText(anchor, `+${D.xp} XP`, 'var(--cyan)'); burst(anchor, CATEGORIES[h.category].color);
+      addXP(D.xp);
+      const after = currentStreak(h);
+      if (k === todayKey() && after !== before && (after === 3 || after === 10 || (after > 10 && after % 10 === 0))) {
+        setTimeout(() => { Sound.streak(); toast(after >= 10 ? `⚡ Супер-комбо ${after} дней: «${h.name}»` : `🔥 Серия ${after} дня: «${h.name}» в огне`, 'gold'); }, 250);
+        logEvent('streak', `Серия ${after} дн.: ${h.name}`);
+      }
+    } else {
+      delete S.log[k][id]; addXP(-D.xp); addCoins(-D.coins); Sound.undo();
+    }
+  } else {
+    if (!was) {
+      S.log[k][id] = 1; Sound.damage(); floatText(anchor, `−${D.antiDmg} HP`, 'var(--red)');
+      logEvent('slip', `Срыв: ${h.name} (−${D.antiDmg} HP)`);
+      damage(D.antiDmg);
+      const row = anchor.closest && anchor.closest('.hitem'); if (row) { row.classList.remove('shake'); void row.offsetWidth; row.classList.add('shake'); }
+    } else { delete S.log[k][id]; heal(D.antiDmg); Sound.undo(); }
+  }
+  if (!Object.keys(S.log[k]).length) delete S.log[k];
+  save(); render({ keepCharts: true });
+  // повторно навесим анимацию «pop» на новый DOM-элемент чекбокса
+  const nb = document.querySelector(`[data-action="toggle"][data-id="${id}"]`);
+  if (nb && !was && !h.anti) { nb.classList.add('pop'); }
+}
+
+/* ============ 7. ЕЖЕДНЕВНОЕ ЗАКРЫТИЕ ДНЕЙ ============ */
+/**
+ * Закрывает один прошедший день:
+ *  - анти-привычка без срыва → половина XP и монет («выстоял»);
+ *  - обычная привычка НЕ выполнена, а перед этим была серия ≥2 → урон HP (срыв стрика);
+ *  - день выполнен на 100% → регенерация +10 HP.
+ * Начисления за выполнение обычных привычек происходят сразу при отметке, здесь их нет.
+ */
+function settleDay(k, report, opts = {}) {
+  for (const h of S.habits) {
+    if (!isScheduled(h, k)) continue;
+    const D = DIFFICULTY[h.difficulty];
+    if (h.anti) {
+      if (!isMarked(h, k)) { const x = Math.round(D.xp / 2); addXP(x, opts); addCoins(Math.round(D.coins / 2)); report.clean++; report.xp += x; }
+    } else if (!isMarked(h, k)) {
+      const prev = streakEndingBefore(h, k);
+      if (prev >= 2) { report.broken.push({ name: h.name, streak: prev, dmg: D.dmg }); report.hp += D.dmg; damage(D.dmg, opts); }
+    }
+  }
+  const st = dayStats(k);
+  if (st.total > 0 && st.ok === st.total) { heal(PERFECT_DAY_HEAL); report.perfect++; }
+}
+/** Закрываем все дни от последнего обработанного до вчера (не больше 60 за раз). */
+function processPastDays() {
+  const y = yesterdayKey();
+  let from = addDays(S.settings.lastProcessed || y, 1);
+  if (daysBetween(from, y) > 60) from = addDays(y, -60);
+  const report = { days: 0, clean: 0, xp: 0, hp: 0, perfect: 0, broken: [] };
+  if (from <= y) {
+    for (const k of rangeKeys(from, y)) { settleDay(k, report, { silent: true }); report.days++; }
+    if (report.broken.length) logEvent('broken', `Сорвано серий: ${report.broken.length} (−${report.hp} HP)`);
+    if (report.clean) logEvent('clean', `Анти-привычки под контролем: +${report.xp} XP`);
+  }
+  S.settings.lastProcessed = y;
+  return report;
+}
+
+/* ============ 8. АНАЛИТИКА ============ */
+/** Статистика дня: сколько привычек было запланировано (total) и сколько успешно (ok). */
+function dayStats(k, list = S.habits) {
+  let total = 0, ok = 0;
+  for (const h of list) { if (!isScheduled(h, k)) continue; total++; if (isSuccess(h, k)) ok++; }
+  return { total, ok, pct: total ? ok / total : null };
+}
+/** Окно анализа: n полных дней, заканчивая вчера (сегодня ещё не завершён). */
+const analysisDays = (n = 90) => { const y = yesterdayKey(); return rangeKeys(addDays(y, -(n - 1)), y); };
+/** Суммарный процент выполнения за набор дней (взвешенный по числу запланированных задач). */
+function rateOver(days, list = S.habits) {
+  let ok = 0, total = 0; for (const k of days) { const s = dayStats(k, list); ok += s.ok; total += s.total; }
+  return total ? ok / total : null;
+}
+/** XP, заработанный в день (по журналу; без учёта бонусов уровня). */
+function xpOnDay(k) {
+  let x = 0;
+  for (const h of S.habits) {
+    if (!isScheduled(h, k)) continue;
+    const D = DIFFICULTY[h.difficulty];
+    if (!h.anti && isMarked(h, k)) x += D.xp;
+    if (h.anti && !isMarked(h, k)) x += Math.round(D.xp / 2);
+  }
+  return x;
+}
+/** Доля успешных дней конкретной привычки за последние n дней. */
+function habitRate(h, n = 30) {
+  let ok = 0, t = 0; for (const k of analysisDays(n)) { if (!isScheduled(h, k)) continue; t++; if (isSuccess(h, k)) ok++; }
+  return t ? ok / t : null;
+}
+/**
+ * Прогноз выполнения привычки на ближайший запланированный день.
+ * Экспоненциальное сглаживание (EWMA): p ← α·x + (1−α)·p, где x = 1 (успех) или 0.
+ * Свежие дни весят больше старых; α = 0.2 ≈ «память» примерно на 9 последних раз.
+ */
+function habitForecast(h) {
+  const alpha = 0.2; let p = 0.5, n = 0;
+  for (const k of analysisDays(60)) { if (!isScheduled(h, k)) continue; p = alpha * (isSuccess(h, k) ? 1 : 0) + (1 - alpha) * p; n++; }
+  return n >= 3 ? p : null;
+}
+/**
+ * Анализ дней недели. Для каждого дня недели — средний % выполнения за 12 недель.
+ * Отклонение считаем относительно общего среднего: dev = (avg_дня / avg_всего − 1)·100%.
+ * Именно это число попадает в фразы «обычно в этот день продуктивность падает на 15%».
+ */
+function weekdayAnalysis() {
+  const sums = Array(7).fill(0), cnt = Array(7).fill(0); let all = 0, allN = 0;
+  for (const k of analysisDays(84)) { const s = dayStats(k); if (s.pct === null) continue; const w = weekday(k); sums[w] += s.pct; cnt[w]++; all += s.pct; allN++; }
+  const overall = allN ? all / allN : null;
+  const avg = sums.map((s, i) => cnt[i] ? s / cnt[i] : null);
+  const dev = avg.map(a => (a === null || !overall) ? null : (a / overall - 1) * 100);
+  return { avg, dev, overall, n: allN };
+}
+/** Линейная регрессия методом наименьших квадратов: y = a + b·x. Возвращает a, b и R². */
+function linreg(pts) {
+  const n = pts.length; if (n < 2) return null;
+  let sx = 0, sy = 0, sxx = 0, sxy = 0;
+  for (const [x, y] of pts) { sx += x; sy += y; sxx += x * x; sxy += x * y; }
+  const den = n * sxx - sx * sx; if (!den) return null;
+  const b = (n * sxy - sx * sy) / den, a = (sy - b * sx) / n;
+  const my = sy / n; let ssT = 0, ssR = 0;
+  for (const [x, y] of pts) { ssT += (y - my) ** 2; ssR += (y - (a + b * x)) ** 2; }
+  return { a, b, r2: ssT ? 1 - ssR / ssT : 0, at: x => a + b * x };
+}
+/** Понедельные проценты выполнения за последние n недель (текущая неделя — по вчерашний день). */
+function weeklySeries(n = 12) {
+  const y = yesterdayKey(), ws = weekStart(todayKey()), out = [];
+  for (let w = n - 1; w >= 0; w--) {
+    const s = addDays(ws, -7 * w); let ok = 0, tot = 0;
+    for (let i = 0; i < 7; i++) { const k = addDays(s, i); if (k > y) break; const st = dayStats(k); ok += st.ok; tot += st.total; }
+    out.push({ label: fmtShort(s), value: tot ? Math.round(ok / tot * 100) : null });
+  }
+  return out;
+}
+function monthlySeries(n = 6) {
+  const now = new Date(), y = yesterdayKey(), out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const first = new Date(now.getFullYear(), now.getMonth() - i, 1), last = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    let ok = 0, tot = 0;
+    for (const k of rangeKeys(toKey(first), toKey(last))) { if (k > y) break; const st = dayStats(k); ok += st.ok; tot += st.total; }
+    out.push({ label: `${MONTHS_SHORT[first.getMonth()]} ${String(first.getFullYear()).slice(2)}`, value: tot ? Math.round(ok / tot * 100) : null });
+  }
+  return out;
+}
+/**
+ * Прогноз тренда: регрессия по последним 8 неделям, экстраполяция на 4 недели вперёд.
+ * Наклон b — изменение в процентных пунктах за неделю; R² — насколько хорошо прямая
+ * объясняет данные (0…1), используем как «надёжность прогноза».
+ */
+function trendForecast() {
+  const ser = weeklySeries(12);
+  const pts = ser.map((s, i) => s.value === null ? null : [i, s.value]).filter(Boolean).slice(-8);
+  const lr = pts.length >= 3 ? linreg(pts) : null;
+  if (!lr) return { ser, lr: null };
+  const lastIdx = pts[pts.length - 1][0];
+  return { ser, lr, lastIdx, in4: clamp(lr.at(lastIdx + 4), 0, 100) };
+}
+/** Прогноз уровня: средний XP/день за 14 дней → сколько дней до следующего уровня. */
+function levelForecast() {
+  const days = analysisDays(14); const avg = days.reduce((s, k) => s + xpOnDay(k), 0) / days.length;
+  const need = xpNeeded(S.profile.level) - S.profile.xp;
+  return { avg, need, days: avg > 0 ? Math.ceil(need / avg) : null };
+}
+/**
+ * МОДУЛЬ КОРРЕЛЯЦИЙ.
+ * Для каждой пары (A → B), где B — обычная привычка, строим таблицу сопряжённости 2×2
+ * по дням, когда обе были запланированы:
+ *                    B выполнена   B не выполнена
+ *    событие A          n11             n10
+ *    нет события A      n01             n00
+ * «Событие A» — выполнение (для обычной привычки) или срыв (для анти-привычки).
+ *
+ *  P(B|A)  = n11 / (n11+n10)  — шанс выполнить B в дни события A
+ *  P(B|¬A) = n01 / (n01+n00)  — шанс выполнить B в остальные дни
+ *  lift    = (P(B|A) / P(B|¬A) − 1)·100%  — «вероятность вырастает на 40%»
+ *  φ (phi) = (n11·n00 − n10·n01) / √((n11+n10)(n01+n00)(n11+n01)(n10+n00))
+ *            коэффициент корреляции для бинарных величин, от −1 до 1.
+ * Отбрасываем пары с малой выборкой (меньше 6 дней в любой группе) и слабой связью (|φ| < 0.15).
+ * Для симметричных пар (A,B)/(B,A) оставляем одну. Сортируем по силе |φ|.
+ */
+function computeCorrelations(limit = 6) {
+  const days = analysisDays(90), MIN = 6, res = [];
+  const targets = S.habits.filter(h => !h.anti);
+  for (const A of S.habits) for (const B of targets) {
+    if (A.id === B.id) continue;
+    let n11 = 0, n10 = 0, n01 = 0, n00 = 0;
+    for (const k of days) {
+      if (!isScheduled(A, k) || !isScheduled(B, k)) continue;
+      const a = isMarked(A, k), b = isMarked(B, k);
+      if (a && b) n11++; else if (a) n10++; else if (b) n01++; else n00++;
+    }
+    const nA = n11 + n10, nN = n01 + n00;
+    if (nA < MIN || nN < MIN) continue;
+    const den = Math.sqrt(nA * nN * (n11 + n01) * (n10 + n00)); if (!den) continue;
+    const phi = (n11 * n00 - n10 * n01) / den;
+    if (Math.abs(phi) < 0.15) continue;
+    const pA = n11 / nA, pN = n01 / nN;
+    res.push({ A, B, pA, pN, phi, lift: pN > 0 ? (pA / pN - 1) * 100 : null, n: nA + nN });
+  }
+  res.sort((x, y) => Math.abs(y.phi) - Math.abs(x.phi));
+  const seen = new Set(), out = [];
+  for (const r of res) { const key = [r.A.id, r.B.id].sort().join('|'); if (seen.has(key)) continue; seen.add(key); out.push(r); if (out.length >= limit) break; }
+  return out;
+}
+function correlationText(r) {
+  const cond = r.A.anti ? `в дни срыва «${esc(r.A.name)}»` : `в дни, когда ты делаешь «${esc(r.A.name)}»`;
+  let eff;
+  if (r.lift === null) eff = 'выполняется почти только в такие дни';
+  else if (r.lift >= 100) eff = `выполняется в ${(r.pA / r.pN).toFixed(1).replace('.', ',')} раза чаще`;
+  else eff = `${r.lift >= 0 ? 'вырастает' : 'падает'} на ${Math.round(Math.abs(r.lift))}%`;
+  const verb = r.lift === null || r.lift >= 100 ? `«${esc(r.B.name)}» ${eff}` : `вероятность выполнения «${esc(r.B.name)}» ${eff}`;
+  return `Замечена связь: ${cond}, ${verb}.`;
+}
+const strengthLabel = phi => { const a = Math.abs(phi); return a >= .4 ? 'сильная' : a >= .25 ? 'умеренная' : 'слабая'; };
+
+/* ============ 9. ГЕНЕРАТОР ТЕСТОВЫХ ДАННЫХ ============ */
+/**
+ * Заполняет трекер правдоподобной историей за 90 дней. В данные заложены закономерности,
+ * чтобы модули аналитики было что «найти»:
+ *  - общий тренд: мотивация растёт со временем (+28 п.п. за 3 месяца);
+ *  - дни недели: воскресенье и суббота проседают, вторник/понедельник — пик;
+ *  - корреляции: пробежка → английский (+), думскроллинг → чтение и английский (−),
+ *    вода → медитация (+), спорт → меньше фастфуда.
+ * После генерации профиль (XP, уровень, HP, монеты) пересчитывается «проигрыванием» истории.
+ */
+function generateMockData() {
+  const today = todayKey(), start = addDays(today, -90), y = yesterdayKey();
+  const daily = { type: 'daily', days: [] };
+  const H = (name, desc, category, difficulty, schedule, anti = false) => ({ id: uid(), name, desc, category, difficulty, schedule, anti, archived: false, createdAt: start, pauses: [] });
+  const run = H('Утренняя пробежка', '5 км в лёгком темпе до завтрака', 'sport', 'medium', daily);
+  const gym = H('Силовая тренировка', 'Зал: ноги, спина, жим', 'sport', 'hard', { type: 'days', days: [1, 3, 5] });
+  const eng = H('Английский 20 минут', 'Anki и один эпизод подкаста', 'study', 'medium', daily);
+  const read = H('Читать 30 страниц', 'Нон-фикшн или техническая литература', 'study', 'easy', daily);
+  const water = H('2 литра воды', 'Бутылка на столе с утра', 'health', 'easy', daily);
+  const med = H('Медитация 10 минут', 'Тишина и дыхание 4-7-8', 'health', 'easy', daily);
+  const guitar = H('Гитара', 'Разбор одной песни', 'hobby', 'medium', { type: 'days', days: [2, 4, 6] });
+  const inbox = H('Inbox Zero', 'Разобрать почту и задачи', 'routine', 'easy', { type: 'days', days: [1, 2, 3, 4, 5] });
+  const fast = H('Фастфуд', 'Никакой доставки бургеров', 'health', 'medium', daily, true);
+  const doom = H('Думскроллинг после 23:00', 'Телефон заряжается в другой комнате', 'routine', 'hard', daily, true);
+  const cold = H('Холодный душ', 'Эксперимент на месяц', 'health', 'medium', daily);
+  cold.archived = true; cold.archivedAt = addDays(today, -40);
+  const habits = [run, gym, eng, read, water, med, guitar, inbox, fast, doom, cold];
+
+  const log = {};
+  const wdMod = { 0: -.2, 1: .06, 2: .07, 3: .04, 4: .01, 5: -.06, 6: -.13 };
+  const days = rangeKeys(start, y);
+  days.forEach((k, i) => {
+    const t = i / (days.length - 1), wd = weekday(k), weekend = wd === 0 || wd === 6 || wd === 5;
+    const mood = clamp(.42 + .28 * t + wdMod[wd] + (Math.random() - .5) * .26, .05, .95);
+    const sch = h => isScheduled(h, k);
+    const roll = (h, bias) => sch(h) && Math.random() < clamp(mood + bias, .02, .98);
+    const mark = (h, v) => { if (v && sch(h)) (log[k] = log[k] || {})[h.id] = 1; };
+    const rRun = roll(run, 0);
+    const rDoom = Math.random() < clamp(.5 - .3 * t + (weekend ? .15 : 0) + (rRun ? -.2 : .08), .03, .9);
+    const rWater = roll(water, .16);
+    const rGym = roll(gym, -.04 + (rRun ? .1 : 0));
+    mark(run, rRun); mark(doom, rDoom); mark(water, rWater); mark(gym, rGym);
+    mark(eng, roll(eng, (rRun ? .18 : -.12) + (rDoom ? -.1 : 0)));
+    mark(read, roll(read, rDoom ? -.24 : .06));
+    mark(med, roll(med, rWater ? .08 : -.2));
+    mark(guitar, roll(guitar, -.04));
+    mark(inbox, roll(inbox, .12));
+    mark(fast, Math.random() < clamp(.34 - .18 * t + (weekend ? .16 : 0) + (rRun || rGym ? -.12 : .05), .03, .9));
+    mark(cold, roll(cold, -.15));
+  });
+
+  S = defaultState();
+  S.habits = habits; S.log = log; S.settings.demo = true; S.settings.lastProcessed = y;
+  S.profile.name = 'Нетраннер';
+  // «Проигрываем» историю, чтобы XP/уровень/HP/монеты соответствовали журналу.
+  const report = { days: 0, clean: 0, xp: 0, hp: 0, perfect: 0, broken: [] };
+  for (const k of days) {
+    for (const h of habitsOn(k)) {
+      const D = DIFFICULTY[h.difficulty];
+      if (!h.anti && isMarked(h, k)) { addXP(D.xp, { silent: true }); addCoins(D.coins); }
+      if (h.anti && isMarked(h, k)) damage(D.antiDmg, { silent: true });
+    }
+    settleDay(k, report, { silent: true });
+  }
+  // Пара покупок в истории магазина
+  [[S.rewards[2], 20], [S.rewards[1], 9]].forEach(([r, ago]) => {
+    if (S.profile.coins >= r.cost) { S.profile.coins -= r.cost; S.purchases.push({ id: uid(), name: r.name, icon: r.icon, cost: r.cost, at: fromKey(addDays(today, -ago)).getTime() + 13 * 3600e3 }); }
+  });
+  S.purchases.sort((a, b) => b.at - a.at);
+  S.events = [];
+  logEvent('system', 'Сгенерирована тестовая история за 90 дней');
+  return report;
+}
+
+/* ============ 10. UI ============ */
+let view = 'today';
+let viewDate = todayKey();
+let lineMode = 'week';
+let catFilter = 'all';
+const charts = {};
+const $ = s => document.querySelector(s);
+const svgIcon = (inner, sz = 20) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
+const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+
+function render(opts = {}) {
+  renderHUD(); renderNav(); renderBanner();
+  VIEWS.forEach(v => { $(`#view-${v.id}`).hidden = v.id !== view; });
+  ({ today: renderToday, habits: renderHabits, stats: renderStats, shop: renderShop, data: renderData })[view](opts);
+}
+
+function renderHUD() {
+  const p = S.profile, need = xpNeeded(p.level), low = p.hp <= 30;
+  $('#hud').innerHTML = `
+    <div class="lvl" title="Уровень ${p.level}"><span>${p.level}</span></div>
+    <div class="flex-1 min-w-0" style="max-width:360px">
+      <div class="flex items-baseline justify-between gap-2">
+        <span class="font-bold truncate" style="font-size:13.5px">${esc(p.name)}</span>
+        <span class="mono dim" style="font-size:11px">${p.xp}/${need} XP</span>
+      </div>
+      <div class="bar xp" role="progressbar" aria-label="Опыт" aria-valuenow="${p.xp}" aria-valuemax="${need}"><i style="width:${(p.xp / need * 100).toFixed(1)}%"></i></div>
+      <div class="flex items-center gap-2" style="margin-top:5px">
+        <div class="bar hp ${low ? 'low' : ''} flex-1" role="progressbar" aria-label="Здоровье" aria-valuenow="${p.hp}" aria-valuemax="${MAX_HP}"><i style="width:${p.hp}%"></i></div>
+        <span class="mono" style="font-size:11px;color:var(--magenta);min-width:52px;text-align:right">${p.hp} HP</span>
+      </div>
+    </div>
+    <div class="coins" title="Монеты"><span class="coin"></span>${p.coins}</div>`;
+  $('#soundBtn').innerHTML = svgIcon(S.settings.sound
+    ? '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'
+    : '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>', 18);
+  $('#soundBtn').setAttribute('aria-pressed', S.settings.sound);
+}
+function renderNav() {
+  $('#tabsTop').innerHTML = VIEWS.map(v => `<button class="tab" data-action="tab" data-view="${v.id}" ${v.id === view ? 'aria-current="page"' : ''}>${v.label}</button>`).join('');
+  $('#tabsBottom').innerHTML = VIEWS.map(v => `<button data-action="tab" data-view="${v.id}" ${v.id === view ? 'aria-current="page"' : ''}>${svgIcon(v.icon)}<span>${v.label}</span></button>`).join('');
+}
+function renderBanner() {
+  $('#banner').innerHTML = S.settings.demo ? `<div class="banner"><div class="shell flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5" style="font-size:13px">
+    <span><b style="color:var(--amber)">Демо-режим.</b> <span class="muted">Сейчас показана сгенерированная история за 90 дней, чтобы сразу проверить графики и аналитику.</span></span>
+    <button class="btn sm" data-action="startClean">Начать с чистого листа</button></div></div>` : '';
+}
+
+/* ---------- Экран «Сегодня» ---------- */
+function habitRow(h, k) {
+  const c = CATEGORIES[h.category], D = DIFFICULTY[h.difficulty], marked = isMarked(h, k), st = currentStreak(h);
+  if (h.anti) {
+    return `<div class="hitem ${marked ? 'is-slip' : ''}" style="--c:${c.color}">
+      <div class="shield" aria-hidden="true">${svgIcon(marked ? '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 9l6 6M15 9l-6 6"/>' : '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>')}</div>
+      <div class="flex-1 min-w-0">
+        <div class="hname flex flex-wrap items-center gap-2">${esc(h.name)} ${streakBadge(st)}</div>
+        <div class="hmeta"><span class="flex items-center gap-1.5"><i class="dot"></i>${c.label}</span><span>${marked ? 'Срыв отмечен' : `Держишься · +${Math.round(D.xp / 2)} XP вечером`}</span></div>
+      </div>
+      <button class="slip" data-action="toggle" data-id="${h.id}" aria-pressed="${marked}">${marked ? `Срыв −${D.antiDmg} HP` : 'Сорвался'}</button>
+    </div>`;
+  }
+  return `<div class="hitem ${marked ? 'is-done' : ''}" style="--c:${c.color}">
+    <button class="nchk" style="--c:${c.color}" data-action="toggle" data-id="${h.id}" aria-pressed="${marked}" aria-label="Отметить «${esc(h.name)}»">${CHECK_SVG}</button>
+    <div class="flex-1 min-w-0">
+      <div class="hname flex flex-wrap items-center gap-2">${esc(h.name)} ${streakBadge(st)}</div>
+      <div class="hmeta"><span class="flex items-center gap-1.5"><i class="dot"></i>${c.label}</span><span>${D.label}</span>${h.desc ? `<span class="truncate" style="max-width:260px">${esc(h.desc)}</span>` : ''}</div>
+    </div>
+    <span class="reward">+${D.xp} XP</span>
+  </div>`;
+}
+function renderToday() {
+  const t = todayKey(), k = viewDate, list = habitsOn(k, activeHabits());
+  const normal = list.filter(h => !h.anti), anti = list.filter(h => h.anti);
+  const st = dayStats(k, activeHabits()), done = normal.filter(h => isMarked(h, k)).length;
+  const frac = st.total ? st.ok / st.total : 0, C = 2 * Math.PI * 54;
+  const isToday = k === t, minDate = addDays(t, -7);
+  const hot = activeHabits().map(h => ({ h, s: currentStreak(h) })).filter(x => x.s >= 3).sort((a, b) => b.s - a.s).slice(0, 5);
+  const lf = levelForecast(), tf = trendForecast();
+  const risk = habitsOn(t, activeHabits()).filter(h => !h.anti && !isMarked(h, t)).map(h => ({ h, p: habitForecast(h) })).filter(x => x.p !== null).sort((a, b) => a.p - b.p)[0];
+
+  let body;
+  if (!activeHabits().length) {
+    body = `<div class="empty"><h2 class="sec">Пока ни одной привычки</h2><p class="muted" style="margin:8px auto 16px;max-width:420px">Создай первую привычку или анти-привычку. Можно также загрузить тестовую историю во вкладке «Данные».</p>
+      <div class="flex flex-wrap gap-2 justify-center"><button class="btn primary" data-action="newHabit">+ Новая привычка</button><button class="btn" data-action="mockData">Сгенерировать тестовые данные</button></div></div>`;
+  } else if (!list.length) {
+    body = `<div class="empty"><h2 class="sec">${isToday ? 'Сегодня' : 'В этот день'} выходной от привычек</h2><p class="muted" style="margin-top:6px">По расписанию ничего не запланировано.</p></div>`;
+  } else {
+    body = `<div class="flex flex-col gap-2.5">${normal.map(h => habitRow(h, k)).join('')}</div>
+      ${anti.length ? `<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1" style="margin:22px 0 10px"><h2 class="sec" style="font-size:15px;white-space:nowrap">Анти-привычки</h2><span class="dim" style="font-size:12.5px">Отмечай только срыв. Чистый день даёт XP при закрытии дня</span></div>
+      <div class="flex flex-col gap-2.5">${anti.map(h => habitRow(h, k)).join('')}</div>` : ''}`;
+  }
+
+  $('#view-today').innerHTML = `
+  <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center justify-between gap-3" style="margin-bottom:16px">
+        <div class="min-w-0">
+          <div class="eyebrow">${isToday ? 'Сегодня' : 'Задним числом'} · ${fmtShort(k)}</div>
+          <h1 class="display" style="font-size:clamp(22px,4.5vw,30px);font-weight:800;line-height:1.15;margin-top:4px">${fmtLong(k)[0].toUpperCase() + fmtLong(k).slice(1)}</h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="iconbtn" data-action="prevDay" ${k <= minDate ? 'disabled style="opacity:.3"' : ''} aria-label="Предыдущий день">${svgIcon('<path d="M15 18l-6-6 6-6"/>', 18)}</button>
+          ${isToday ? '' : '<button class="btn sm" data-action="goToday">Сегодня</button>'}
+          <button class="iconbtn" data-action="nextDay" ${isToday ? 'disabled style="opacity:.3"' : ''} aria-label="Следующий день">${svgIcon('<path d="M9 18l6-6-6-6"/>', 18)}</button>
+          <button class="btn primary sm" data-action="newHabit">+ Привычка</button>
+        </div>
+      </div>
+      ${body}
+    </div>
+    <aside class="flex flex-col gap-4 min-w-0">
+      <div class="panel flex items-center gap-4">
+        <div class="ring-wrap"><svg width="132" height="132" viewBox="0 0 132 132"><circle class="ring-bg" cx="66" cy="66" r="54"/><circle class="ring-fg" cx="66" cy="66" r="54" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - frac)}"/></svg>
+          <div class="ring-label"><div><div class="display" style="font-size:28px;font-weight:800">${Math.round(frac * 100)}%</div><div class="dim mono" style="font-size:10.5px">ВЫПОЛНЕНО</div></div></div></div>
+        <div class="min-w-0">
+          <div class="eyebrow">Прогресс дня</div>
+          <div class="mono" style="font-size:22px;font-weight:700;margin-top:2px">${st.ok}<span class="dim">/${st.total}</span></div>
+          <p class="muted" style="font-size:13px;margin-top:4px">${done} из ${normal.length} ${plural(normal.length, ['задачи', 'задач', 'задач'])} отмечено${anti.length ? `, ${anti.filter(h => !isMarked(h, k)).length} из ${anti.length} анти под контролем` : ''}.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="flex items-center justify-between"><h3 class="card-t">Серии в огне</h3><span class="eyebrow">стрик</span></div>
+        ${hot.length ? `<ul class="feed" style="margin-top:8px">${hot.map(x => `<li class="items-center justify-between"><span class="flex items-center gap-2 min-w-0"><i class="dot" style="--c:${CATEGORIES[x.h.category].color}"></i><span class="truncate">${esc(x.h.name)}</span></span>${streakBadge(x.s)}</li>`).join('')}</ul>`
+          : '<p class="dim" style="font-size:13px;margin-top:8px">Серия от 3 дней получает 🔥, от 10 дней — ⚡ супер-комбо.</p>'}
+      </div>
+      <div class="panel">
+        <div class="flex items-center justify-between"><h3 class="card-t">Прогноз</h3><span class="eyebrow">ML-lite</span></div>
+        <ul class="feed" style="margin-top:8px">
+          <li class="justify-between"><span class="muted">Следующий уровень</span><span class="mono">${lf.days === null ? '—' : `≈ ${lf.days} ${plural(lf.days, ['день', 'дня', 'дней'])}`}</span></li>
+          <li class="justify-between"><span class="muted">Средний темп</span><span class="mono">${Math.round(lf.avg)} XP/день</span></li>
+          <li class="justify-between"><span class="muted">Через 4 недели</span><span class="mono">${tf.lr ? `${Math.round(tf.in4)}% выполнения` : 'нужно больше данных'}</span></li>
+          ${risk ? `<li class="flex-col" style="gap:2px"><span class="muted">Под угрозой сегодня</span><span><b>${esc(risk.h.name)}</b> <span class="mono dim">шанс ${pct(risk.p)}</span></span></li>` : ''}
+        </ul>
+      </div>
+      <div class="panel">
+        <h3 class="card-t">Лента событий</h3>
+        ${S.events.length ? `<ul class="feed" style="margin-top:8px">${S.events.slice(0, 6).map(e => `<li><span class="mono dim" style="font-size:11px;white-space:nowrap;padding-top:2px">${new Date(e.t).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</span><span class="min-w-0">${esc(e.text)}</span></li>`).join('')}</ul>` : '<p class="dim" style="font-size:13px;margin-top:8px">Здесь появятся уровни, серии и срывы.</p>'}
+      </div>
+    </aside>
+  </div>`;
+}
+
+/* ---------- Экран «Привычки» ---------- */
+function habitCard(h) {
+  const c = CATEGORIES[h.category], D = DIFFICULTY[h.difficulty], cur = currentStreak(h), best = bestStreak(h);
+  const rate = habitRate(h, 30), fc = habitForecast(h), t = todayKey();
+  const dots = Array.from({ length: 14 }, (_, i) => addDays(t, i - 13)).map(k => {
+    if (!isScheduled(h, k)) return `<i class="off" title="${fmtShort(k)}: не запланировано"></i>`;
+    if (k === t && !isMarked(h, k)) return `<i title="Сегодня"></i>`;
+    return isSuccess(h, k) ? `<i class="ok" title="${fmtShort(k)}: ${h.anti ? 'без срыва' : 'выполнено'}"></i>` : `<i class="miss" title="${fmtShort(k)}: ${h.anti ? 'срыв' : 'пропуск'}"></i>`;
+  }).join('');
+  const days = MON_FIRST.map(d => `<span class="${h.schedule.type === 'daily' || h.schedule.days.includes(d) ? 'on' : ''}">${WD_SHORT[d]}</span>`).join('');
+  return `<article class="hcard" style="--c:${c.color}">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <div class="flex flex-wrap items-center gap-1.5" style="margin-bottom:6px"><span class="pill"><i class="dot"></i>${c.label}</span><span class="pill">${D.label} · ${h.anti ? `−${D.antiDmg} HP` : `+${D.xp} XP`}</span>${h.anti ? '<span class="pill" style="color:var(--red);border-color:rgba(255,77,94,.45)">анти</span>' : ''}</div>
+        <h3 class="display" style="font-size:16px;font-weight:700;line-height:1.3">${esc(h.name)}</h3>
+        ${h.desc ? `<p class="muted" style="font-size:13px;margin-top:3px">${esc(h.desc)}</p>` : ''}
+      </div>
+      ${streakBadge(cur)}
+    </div>
+    <div class="wdays" aria-label="Расписание">${days}</div>
+    <div class="kv">
+      <div><b>${cur}</b><small>серия</small></div>
+      <div><b>${best}</b><small>рекорд</small></div>
+      <div><b>${rate === null ? '—' : pct(rate)}</b><small>за 30 дней</small></div>
+      <div><b style="color:${fc === null ? 'var(--fg)' : fc < .45 ? 'var(--red)' : fc > .7 ? 'var(--lime)' : 'var(--fg)'}">${fc === null ? '—' : pct(fc)}</b><small>прогноз</small></div>
+    </div>
+    <div><div class="eyebrow" style="margin-bottom:6px">Последние 14 дней</div><div class="mini">${dots}</div></div>
+    <div class="flex gap-2" style="margin-top:2px">
+      <button class="btn sm" data-action="editHabit" data-id="${h.id}">Изменить</button>
+      <button class="btn sm" data-action="archiveHabit" data-id="${h.id}">В архив</button>
+    </div>
+  </article>`;
+}
+function renderHabits() {
+  const act = activeHabits().filter(h => catFilter === 'all' || h.category === catFilter);
+  const arch = S.habits.filter(h => h.archived);
+  const filters = [['all', 'Все', 'var(--cyan)'], ...CAT_KEYS.map(k => [k, CATEGORIES[k].label, CATEGORIES[k].color])];
+  $('#view-habits').innerHTML = `
+    <div class="flex flex-wrap items-end justify-between gap-3" style="margin-bottom:16px">
+      <div><div class="eyebrow">Управление</div><h1 class="display" style="font-size:clamp(22px,4.5vw,30px);font-weight:800;margin-top:4px">Привычки</h1></div>
+      <button class="btn primary" data-action="newHabit">+ Новая привычка</button>
+    </div>
+    <div class="chips" style="margin-bottom:16px">${filters.map(([k, l, col]) => `<label class="chip" style="--c:${col}"><input type="radio" name="catf" id="catf-${k}" value="${k}" ${catFilter === k ? 'checked' : ''} data-action="catFilter"><span>${l}</span></label>`).join('')}</div>
+    ${act.length ? `<div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">${act.map(habitCard).join('')}</div>`
+      : `<div class="empty"><p class="muted">В этой категории нет активных привычек.</p><button class="btn primary" style="margin-top:12px" data-action="newHabit">+ Создать</button></div>`}
+    <details class="panel" style="margin-top:22px" ${arch.length ? '' : 'open'}>
+      <summary class="flex items-center justify-between gap-3"><h2 class="sec" style="font-size:15px">Архив <span class="mono dim">${arch.length}</span></h2><span class="dim" style="font-size:12.5px">История архивных привычек остаётся в статистике</span></summary>
+      ${arch.length ? `<div class="flex flex-col" style="margin-top:12px">${arch.map(h => `<div class="flex flex-wrap items-center justify-between gap-3" style="padding:10px 0;border-top:1px solid rgba(43,39,84,.7)">
+        <div class="min-w-0"><div class="font-bold flex items-center gap-2"><i class="dot" style="--c:${CATEGORIES[h.category].color}"></i>${esc(h.name)}</div><div class="dim mono" style="font-size:11.5px">с ${fmtShort(h.createdAt)} по ${h.archivedAt ? fmtShort(addDays(h.archivedAt, -1)) : '—'} · рекорд ${bestStreak(h)}</div></div>
+        <div class="flex gap-2"><button class="btn sm" data-action="restoreHabit" data-id="${h.id}">Вернуть</button><button class="btn sm danger" data-action="deleteHabit" data-id="${h.id}">Удалить навсегда</button></div></div>`).join('')}</div>`
+        : '<p class="dim" style="font-size:13px;margin-top:10px">Архивные привычки не появляются в списке дня, но их история остаётся в графиках.</p>'}
+    </details>`;
+}
+
+/* ---------- Экран «Аналитика» ---------- */
+function renderStats(opts = {}) {
+  const el = $('#view-stats');
+  const d30 = analysisDays(30), dPrev = analysisDays(60).slice(0, 30);
+  const r30 = rateOver(d30), rPrev = rateOver(dPrev);
+  const perfect = d30.filter(k => { const s = dayStats(k); return s.total && s.ok === s.total; }).length;
+  const bestAll = S.habits.map(h => ({ h, b: bestStreak(h) })).sort((a, b) => b.b - a.b)[0];
+  const wa = weekdayAnalysis(), corr = computeCorrelations(), tf = trendForecast(), lf = levelForecast();
+  const delta = (r30 !== null && rPrev !== null) ? Math.round((r30 - rPrev) * 100) : null;
+  const ranked = S.habits.filter(h => !h.archived).map(h => ({ h, r: habitRate(h, 30) })).filter(x => x.r !== null).sort((a, b) => b.r - a.r);
+  const wdOrder = MON_FIRST.filter(i => wa.avg[i] !== null);
+  const best = wdOrder.length ? wdOrder.reduce((a, b) => wa.avg[a] >= wa.avg[b] ? a : b) : null;
+  const worst = wdOrder.length ? wdOrder.reduce((a, b) => wa.avg[a] <= wa.avg[b] ? a : b) : null;
+  const hasData = wa.n > 0;
+
+  el.innerHTML = `
+    <div class="flex flex-wrap items-end justify-between gap-3" style="margin-bottom:16px">
+      <div><div class="eyebrow">Data Science</div><h1 class="display" style="font-size:clamp(22px,4.5vw,30px);font-weight:800;margin-top:4px">Аналитика</h1></div>
+      <span class="dim" style="font-size:12.5px">Окно анализа: до 90 полных дней, по вчерашний день</span>
+    </div>
+    ${hasData ? '' : `<div class="empty" style="margin-bottom:16px"><p class="muted">Пока нет завершённых дней для анализа. Сгенерируй тестовую историю, чтобы увидеть все графики.</p><button class="btn primary" style="margin-top:12px" data-action="mockData">Сгенерировать тестовые данные</button></div>`}
+    <div class="grid gap-4 grid-cols-2 lg:grid-cols-4" style="margin-bottom:16px">
+      <div class="panel kpi"><div class="eyebrow">Выполнение · 30 дн</div><b>${r30 === null ? '—' : pct(r30)}</b>${delta === null ? '' : `<span class="delta ${delta >= 0 ? 'up' : 'down'}">${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)} п.п. к прошлым 30</span>`}</div>
+      <div class="panel kpi"><div class="eyebrow">Идеальные дни</div><b>${perfect}</b><span class="dim" style="font-size:12px">из 30, всё на 100%</span></div>
+      <div class="panel kpi"><div class="eyebrow">Рекорд серии</div><b>${bestAll ? bestAll.b : 0}</b><span class="dim truncate" style="font-size:12px;display:block">${bestAll ? esc(bestAll.h.name) : '—'}</span></div>
+      <div class="panel kpi"><div class="eyebrow">Всего опыта</div><b>${S.profile.totalXp.toLocaleString('ru-RU')}</b><span class="dim" style="font-size:12px">${Math.round(lf.avg)} XP в день за 2 недели</span></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:16px">
+      <div class="flex flex-wrap items-center justify-between gap-3" style="margin-bottom:12px">
+        <div><h3 class="card-t">Сетка активности · 12 недель</h3><p class="dim" style="font-size:12.5px">Яркость клетки = доля выполненных задач в этот день</p></div>
+        <div class="legend-steps mono dim" style="font-size:11px">меньше <i style="background:#1a1733"></i><i style="background:rgba(41,230,255,.2)"></i><i style="background:rgba(41,230,255,.42)"></i><i style="background:rgba(41,230,255,.68)"></i><i style="background:var(--cyan)"></i> больше</div>
+      </div>
+      <div class="grid-wrap"><div id="agrid"></div></div>
+      <div id="gridInfo" class="mono dim" style="font-size:12px;margin-top:8px;min-height:18px">Наведи на клетку, чтобы увидеть детали дня</div>
+    </div>
+
+    <div class="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]" style="margin-bottom:16px">
+      <div class="panel">
+        <div class="flex flex-wrap items-center justify-between gap-3" style="margin-bottom:10px">
+          <div><h3 class="card-t">Тренд продуктивности</h3><p class="dim" style="font-size:12.5px">${lineMode === 'week' ? 'Процент выполнения по неделям и прогноз на 4 недели' : 'Процент выполнения по месяцам'}</p></div>
+          <div class="seg"><button data-action="lineMode" data-mode="week" aria-pressed="${lineMode === 'week'}">Недели</button><button data-action="lineMode" data-mode="month" aria-pressed="${lineMode === 'month'}">Месяцы</button></div>
+        </div>
+        <div class="chart-box tall"><canvas id="lineChart" aria-label="Линейный график продуктивности"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3 class="card-t">Прогноз</h3>
+        <p class="dim" style="font-size:12.5px;margin-bottom:6px">Линейная регрессия по 8 неделям и сглаженные вероятности</p>
+        <ul class="feed">
+          <li class="justify-between"><span class="muted">Тренд</span><span class="mono" style="color:${tf.lr ? (tf.lr.b >= 0 ? 'var(--lime)' : 'var(--red)') : 'var(--fg)'}">${tf.lr ? `${tf.lr.b >= 0 ? '+' : '−'}${Math.abs(tf.lr.b).toFixed(1).replace('.', ',')} п.п./нед` : '—'}</span></li>
+          <li class="justify-between"><span class="muted">Через 4 недели</span><span class="mono">${tf.lr ? `${Math.round(tf.in4)}%` : '—'}</span></li>
+          <li class="justify-between"><span class="muted">Надёжность (R²)</span><span class="mono">${tf.lr ? tf.lr.r2.toFixed(2).replace('.', ',') : '—'}</span></li>
+          <li class="justify-between"><span class="muted">Уровень ${S.profile.level + 1}</span><span class="mono">${lf.days === null ? '—' : `≈ ${lf.days} ${plural(lf.days, ['день', 'дня', 'дней'])}`}</span></li>
+        </ul>
+        <div class="eyebrow" style="margin:14px 0 6px">Шанс на следующий раз</div>
+        <ul class="feed">${ranked.length ? ranked.map(x => ({ ...x, f: habitForecast(x.h) })).filter(x => x.f !== null).sort((a, b) => a.f - b.f).slice(0, 4).map(x => `<li class="justify-between"><span class="truncate">${esc(x.h.name)}</span><span class="mono" style="color:${x.f < .45 ? 'var(--red)' : x.f > .7 ? 'var(--lime)' : 'var(--fg)'}">${pct(x.f)}</span></li>`).join('') : '<li class="dim">Нет данных</li>'}</ul>
+      </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2" style="margin-bottom:16px">
+      <div class="panel"><h3 class="card-t">Баланс жизни</h3><p class="dim" style="font-size:12.5px;margin-bottom:10px">Куда уходит энергия: XP по категориям за 90 дней</p><div class="chart-box"><canvas id="pieChart" aria-label="Круговая диаграмма по категориям"></canvas></div></div>
+      <div class="panel"><h3 class="card-t">Колесо баланса навыков</h3><p class="dim" style="font-size:12.5px;margin-bottom:10px">% выполнения по категориям: последние 30 дней против предыдущих</p><div class="chart-box"><canvas id="radarChart" aria-label="Радарная диаграмма навыков"></canvas></div></div>
+    </div>
+
+    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]" style="margin-bottom:16px">
+      <div class="panel">
+        <h3 class="card-t">Дни недели</h3>
+        <p class="dim" style="font-size:12.5px;margin-bottom:10px">${best !== null ? `Пик — <b style="color:var(--lime)">${WD_FULL[best]}</b> (${pct(wa.avg[best])}), спад — <b style="color:var(--magenta)">${WD_FULL[worst]}</b> (${pct(wa.avg[worst])})` : 'Средний % выполнения за 12 недель'}</p>
+        <div class="chart-box"><canvas id="barChart" aria-label="Столбчатая диаграмма дней недели"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="flex items-center justify-between gap-3"><h3 class="card-t">Корреляции и инсайты</h3><span class="eyebrow">φ-коэффициент</span></div>
+        <p class="dim" style="font-size:12.5px;margin-bottom:12px">Алгоритм сравнивает, как часто привычка выполняется в дни, когда другая сделана (или сорвана), и в остальные дни</p>
+        <div>${corr.length ? corr.map(r => {
+          const col = r.phi >= 0 ? 'var(--lime)' : 'var(--magenta)';
+          return `<div class="insight"><div class="min-w-0 flex-1"><p style="font-size:14px">${correlationText(r)}</p><p class="mono dim" style="font-size:11.5px;margin-top:3px">${pct(r.pA)} против ${pct(r.pN)} · ${r.n} ${plural(r.n, ['день', 'дня', 'дней'])} наблюдений</p></div>
+            <div class="phi"><div class="mono" style="font-weight:700;color:${col}">${r.phi >= 0 ? '+' : '−'}${Math.abs(r.phi).toFixed(2).replace('.', ',')}</div><div class="strength dim">${strengthLabel(r.phi)}</div><div class="phi-bar"><i style="width:${Math.min(100, Math.abs(r.phi) * 160)}%;background:${col}"></i></div></div></div>`;
+        }).join('') : '<p class="dim" style="font-size:13px">Связей пока не найдено. Нужно минимум по 6 дней с событием и без него для каждой пары привычек.</p>'}
+        ${ranked.length >= 2 ? `<div class="insight"><div class="min-w-0 flex-1"><p style="font-size:14px">Самая стабильная привычка — «${esc(ranked[0].h.name)}» (${pct(ranked[0].r)} за 30 дней). Слабое звено — «${esc(ranked[ranked.length - 1].h.name)}» (${pct(ranked[ranked.length - 1].r)}).</p></div></div>` : ''}
+        ${best !== null && worst !== null && wa.dev[worst] !== null ? `<div class="insight"><div class="min-w-0 flex-1"><p style="font-size:14px">${WD_IN[worst][0].toUpperCase() + WD_IN[worst].slice(1)} твоя продуктивность в среднем на ${Math.round(Math.abs(wa.dev[worst]))}% ниже обычного, а ${WD_IN[best]} — на ${Math.round(Math.abs(wa.dev[best]))}% выше.</p></div></div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <details class="panel">
+      <summary class="flex items-center justify-between"><h3 class="card-t">Таблица по привычкам</h3><span class="dim" style="font-size:12.5px">Данные графиков в табличном виде</span></summary>
+      <div style="overflow-x:auto;margin-top:10px"><table class="tbl mono"><thead><tr><th>Привычка</th><th>Категория</th><th>30 дней</th><th>Серия</th><th>Рекорд</th><th>Прогноз</th></tr></thead><tbody>
+      ${S.habits.map(h => { const r = habitRate(h, 30), f = habitForecast(h); return `<tr><td style="font-family:var(--font-body)">${esc(h.name)}${h.archived ? ' <span class="dim">(архив)</span>' : ''}</td><td>${CATEGORIES[h.category].label}</td><td>${r === null ? '—' : pct(r)}</td><td>${currentStreak(h)}</td><td>${bestStreak(h)}</td><td>${f === null ? '—' : pct(f)}</td></tr>`; }).join('')}
+      </tbody></table></div>
+    </details>`;
+
+  renderActivityGrid();
+  renderCharts(wa, tf, best, worst);
+}
+
+/**
+ * GitHub Activity Grid: 12 столбцов-недель × 7 строк-дней (Пн…Вс).
+ * Уровень интенсивности — по доле выполненного: 0, <35%, <60%, <85%, ≥85%.
+ */
+function renderActivityGrid() {
+  const t = todayKey(), start = addDays(weekStart(t), -7 * 11);
+  const cells = [], months = [];
+  let lastMonth = -1;
+  for (let w = 0; w < 12; w++) {
+    const wk = addDays(start, w * 7), m = fromKey(wk).getMonth();
+    months.push(m !== lastMonth ? `<span>${MONTHS_SHORT[m]}</span>` : '<span></span>'); lastMonth = m;
+    for (let d = 0; d < 7; d++) {
+      const k = addDays(wk, d);
+      if (k > t) { cells.push('<div class="cell future"></div>'); continue; }
+      const s = dayStats(k);
+      let cls = 'none';
+      if (s.total) { const p = s.ok / s.total; cls = p === 0 ? '' : p < .35 ? 'l1' : p < .6 ? 'l2' : p < .85 ? 'l3' : 'l4'; }
+      cells.push(`<div class="cell ${cls} ${k === t ? 'today' : ''}" data-k="${k}" data-ok="${s.ok}" data-t="${s.total}" title="${fmtShort(k)}: ${s.total ? `${s.ok}/${s.total}` : 'нет задач'}"></div>`);
+    }
+  }
+  $('#agrid').innerHTML = `<div style="display:grid;grid-template-columns:24px auto;gap:6px 8px;width:max-content">
+    <span></span><div class="mlabels">${months.join('')}</div>
+    <div class="glabels"><span>Пн</span><span></span><span>Ср</span><span></span><span>Пт</span><span></span><span>Вс</span></div>
+    <div class="agrid">${cells.join('')}</div></div>`;
+}
+
+function chartBase() {
+  if (!window.Chart) return false;
+  Chart.defaults.color = '#a29ecb';
+  Chart.defaults.font.family = "'JetBrains Mono', ui-monospace, monospace";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.borderColor = 'rgba(124,112,255,.12)';
+  Chart.defaults.plugins.tooltip.backgroundColor = '#17143a';
+  Chart.defaults.plugins.tooltip.borderColor = '#2b2754';
+  Chart.defaults.plugins.tooltip.borderWidth = 1;
+  Chart.defaults.plugins.tooltip.titleColor = '#eeecff';
+  Chart.defaults.plugins.tooltip.bodyColor = '#eeecff';
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.legend.labels.boxWidth = 10;
+  Chart.defaults.plugins.legend.labels.boxHeight = 10;
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  return true;
+}
+function mkChart(id, cfg) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const c = document.getElementById(id); if (!c) return;
+  charts[id] = new Chart(c, cfg);
+}
+const reduceMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function renderCharts(wa, tf, best, worst) {
+  if (!chartBase()) {
+    document.querySelectorAll('.chart-box').forEach(b => { b.innerHTML = '<p class="dim" style="padding:20px">Не удалось загрузить Chart.js. Проверь подключение к интернету.</p>'; });
+    return;
+  }
+  const anim = reduceMotion() ? false : { duration: 700 };
+  const pctAxis = { min: 0, max: 100, ticks: { stepSize: 25, callback: v => v + '%' }, grid: { color: 'rgba(124,112,255,.1)' } };
+
+  // ЛИНЕЙНЫЙ ГРАФИК: тренд + пунктирный прогноз (только понедельный режим)
+  const ser = lineMode === 'week' ? tf.ser : monthlySeries(6);
+  const labels = ser.map(s => s.label), actual = ser.map(s => s.value);
+  const ds = [{ label: 'Выполнение', data: actual, borderColor: '#29e6ff', borderWidth: 2, tension: .35, pointRadius: 4, pointHoverRadius: 6, pointBackgroundColor: '#29e6ff', pointBorderColor: '#12102a', pointBorderWidth: 2, spanGaps: true, fill: true,
+    backgroundColor: ctx => { const { chart } = ctx, a = chart.chartArea; if (!a) return 'rgba(41,230,255,.1)'; const g = chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(41,230,255,.28)'); g.addColorStop(1, 'rgba(41,230,255,0)'); return g; } }];
+  if (lineMode === 'week' && tf.lr) {
+    const fc = Array(labels.length).fill(null); fc[tf.lastIdx] = actual[tf.lastIdx];
+    for (let i = 1; i <= 4; i++) { labels.push(`+${i} нед`); actual.push(null); fc.push(Math.round(clamp(tf.lr.at(tf.lastIdx + i), 0, 100))); }
+    ds.push({ label: 'Прогноз', data: fc, borderColor: '#ffc23d', borderDash: [6, 5], borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#ffc23d', tension: 0, spanGaps: true, fill: false });
+  }
+  mkChart('lineChart', { type: 'line', data: { labels, datasets: ds },
+    options: { responsive: true, maintainAspectRatio: false, animation: anim, interaction: { mode: 'index', intersect: false },
+      scales: { y: pctAxis, x: { grid: { display: false } } },
+      plugins: { legend: { display: ds.length > 1, position: 'top', align: 'end' }, tooltip: { callbacks: { label: c => c.raw === null ? null : `${c.dataset.label}: ${c.raw}%` }, filter: i => i.raw !== null } } } });
+
+  // КРУГОВАЯ ДИАГРАММА: XP по категориям за 90 дней
+  const days90 = analysisDays(90), xpCat = Object.fromEntries(CAT_KEYS.map(k => [k, 0]));
+  for (const k of days90) for (const h of habitsOn(k)) {
+    const D = DIFFICULTY[h.difficulty];
+    if (!h.anti && isMarked(h, k)) xpCat[h.category] += D.xp;
+    if (h.anti && !isMarked(h, k)) xpCat[h.category] += Math.round(D.xp / 2);
+  }
+  const pieKeys = CAT_KEYS.filter(k => xpCat[k] > 0);
+  mkChart('pieChart', { type: 'doughnut', data: { labels: pieKeys.map(k => CATEGORIES[k].label), datasets: [{ data: pieKeys.map(k => xpCat[k]), backgroundColor: pieKeys.map(k => CATEGORIES[k].color), borderColor: '#12102a', borderWidth: 3, hoverOffset: 10 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: anim, cutout: '58%',
+      plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: c => { const tot = c.dataset.data.reduce((a, b) => a + b, 0); return ` ${c.label}: ${c.raw.toLocaleString('ru-RU')} XP (${Math.round(c.raw / tot * 100)}%)`; } } } } } });
+
+  // РАДАР: % выполнения по категориям, 30 дней против предыдущих 30
+  const d30 = analysisDays(30), dPrev = analysisDays(60).slice(0, 30);
+  const catRate = (days, cat) => { const r = rateOver(days, S.habits.filter(h => h.category === cat)); return r === null ? 0 : Math.round(r * 100); };
+  mkChart('radarChart', { type: 'radar', data: { labels: CAT_KEYS.map(k => CATEGORIES[k].label), datasets: [
+      { label: 'Последние 30 дней', data: CAT_KEYS.map(k => catRate(d30, k)), borderColor: '#29e6ff', backgroundColor: 'rgba(41,230,255,.18)', borderWidth: 2, pointBackgroundColor: '#29e6ff', pointRadius: 4 },
+      { label: 'Предыдущие 30', data: CAT_KEYS.map(k => catRate(dPrev, k)), borderColor: '#ff3d8e', backgroundColor: 'rgba(255,61,142,.08)', borderWidth: 2, borderDash: [5, 4], pointBackgroundColor: '#ff3d8e', pointRadius: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: anim,
+      scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, display: false }, grid: { color: 'rgba(124,112,255,.16)' }, angleLines: { color: 'rgba(124,112,255,.16)' }, pointLabels: { color: '#eeecff', font: { family: "'Manrope', system-ui, sans-serif", size: 12, weight: '600' } } } },
+      plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw}%` } } } } });
+
+  // СТОЛБЧАТАЯ: средний % по дням недели, лучший и худший подсвечены
+  const vals = MON_FIRST.map(i => wa.avg[i] === null ? null : Math.round(wa.avg[i] * 100));
+  mkChart('barChart', { type: 'bar', data: { labels: MON_FIRST.map(i => WD_SHORT[i]), datasets: [{ label: 'Среднее выполнение', data: vals,
+      backgroundColor: MON_FIRST.map(i => i === best ? '#4dffa6' : i === worst ? '#ff3d8e' : 'rgba(157,140,255,.55)'), borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: 'bottom', maxBarThickness: 34 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: anim, scales: { y: pctAxis, x: { grid: { display: false } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => { const i = MON_FIRST[c.dataIndex], d = wa.dev[i]; return ` ${c.raw}%${d === null ? '' : ` (${d >= 0 ? '+' : '−'}${Math.abs(Math.round(d))}% к среднему)`}`; } } } } } });
+}
+
+/* ---------- Экран «Магазин» ---------- */
+function renderShop() {
+  const c = S.profile.coins;
+  $('#view-shop').innerHTML = `
+    <div class="flex flex-wrap items-end justify-between gap-3" style="margin-bottom:16px">
+      <div><div class="eyebrow">Rewards Shop</div><h1 class="display" style="font-size:clamp(22px,4.5vw,30px);font-weight:800;margin-top:4px">Магазин наград</h1></div>
+      <div class="coins" style="font-size:18px;padding:8px 16px"><span class="coin" style="width:18px;height:18px"></span>${c} монет</div>
+    </div>
+    <p class="muted" style="margin-bottom:16px;max-width:640px">Монеты начисляются за выполнение привычек: ${DIFFICULTY.easy.coins} за лёгкую, ${DIFFICULTY.medium.coins} за среднюю, ${DIFFICULTY.hard.coins} за хардкор. Анти-привычка без срыва приносит половину.</p>
+    <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" style="margin-bottom:20px">
+      ${S.rewards.map(r => `<div class="rcard"><button class="rdel" data-action="deleteReward" data-id="${r.id}" aria-label="Удалить награду">${svgIcon('<path d="M6 6l12 12M18 6L6 18"/>', 16)}</button>
+        <div class="ricon">${esc(r.icon)}</div><div class="font-bold" style="padding-right:24px">${esc(r.name)}</div>
+        <div class="flex items-center justify-between gap-2" style="margin-top:auto"><span class="rcost"><span class="coin"></span>${r.cost}</span>
+        <button class="btn sm ${c >= r.cost ? 'gold' : ''}" data-action="buy" data-id="${r.id}" ${c >= r.cost ? '' : 'disabled'}>${c >= r.cost ? 'Купить' : `Ещё ${r.cost - c}`}</button></div></div>`).join('')}
+    </div>
+    <div class="grid gap-4 lg:grid-cols-2">
+      <form class="panel flex flex-col gap-3" id="rewardForm">
+        <h3 class="card-t">Новая награда</h3>
+        <div class="field"><label for="rw-name">Название</label><input class="input" id="rw-name" maxlength="60" placeholder="Например, 1 час плойки" required></div>
+        <div class="field"><label for="rw-cost">Цена в монетах</label><input class="input mono" id="rw-cost" type="number" min="10" max="100000" step="10" value="150" required></div>
+        <div class="field"><span class="flabel">Иконка</span><div class="chips">${REWARD_ICONS.map((ic, i) => `<label class="chip"><input type="radio" name="rw-icon" id="rw-icon-${i}" value="${ic}" ${i === 0 ? 'checked' : ''}><span style="font-size:18px;padding:5px 10px">${ic}</span></label>`).join('')}</div></div>
+        <button class="btn primary" type="submit" style="align-self:flex-start">Добавить в магазин</button>
+      </form>
+      <div class="panel">
+        <h3 class="card-t">История покупок</h3>
+        ${S.purchases.length ? `<ul class="feed" style="margin-top:8px">${S.purchases.slice(0, 12).map(p => `<li class="justify-between items-center"><span class="flex items-center gap-2 min-w-0"><span>${esc(p.icon || '🎁')}</span><span class="truncate">${esc(p.name)}</span></span><span class="mono dim" style="white-space:nowrap">${new Date(p.at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })} · −${p.cost}</span></li>`).join('')}</ul>` : '<p class="dim" style="font-size:13px;margin-top:8px">Пока ничего не куплено. Награды работают, только если ты честно ждёшь, пока накопишь.</p>'}
+      </div>
+    </div>`;
+}
+
+/* ---------- Экран «Данные» ---------- */
+function renderData() {
+  const nH = S.habits.length, nDays = Object.keys(S.log).length;
+  $('#view-data').innerHTML = `
+    <div style="margin-bottom:16px"><div class="eyebrow">Инструменты разработчика</div><h1 class="display" style="font-size:clamp(22px,4.5vw,30px);font-weight:800;margin-top:4px">Данные и профиль</h1></div>
+    <div class="grid gap-4 md:grid-cols-2">
+      <form class="panel flex flex-col gap-3" id="profileForm">
+        <h3 class="card-t">Профиль</h3>
+        <div class="field"><label for="pf-name">Имя персонажа</label><input class="input" id="pf-name" maxlength="30" value="${esc(S.profile.name)}"></div>
+        <label class="switch cyan" for="pf-sound"><input type="checkbox" id="pf-sound" ${S.settings.sound ? 'checked' : ''} data-action="soundSwitch"><span class="track"></span><span>Звуковые эффекты</span></label>
+        <div class="flex flex-wrap gap-2"><button class="btn primary sm" type="submit">Сохранить</button><button class="btn sm" type="button" data-action="showDigest">Показать утренний дайджест</button></div>
+      </form>
+      <div class="panel flex flex-col gap-3">
+        <h3 class="card-t">Перенос между устройствами</h3>
+        <p class="muted" style="font-size:13.5px">В хранилище: ${nH} ${plural(nH, ['привычка', 'привычки', 'привычек'])}, ${nDays} ${plural(nDays, ['день', 'дня', 'дней'])} истории. Данные хранятся только в этом браузере.</p>
+        <div class="flex flex-wrap gap-2"><button class="btn primary" data-action="exportJson">Экспорт в JSON</button><button class="btn" data-action="importJson">Импорт JSON</button></div>
+      </div>
+      <div class="panel flex flex-col gap-3">
+        <h3 class="card-t">Тестовые данные</h3>
+        <p class="muted" style="font-size:13.5px">Заполняет трекер случайной историей за 3 месяца: 11 привычек, тренд роста, проседающие выходные и заложенные связи между привычками. Текущие данные будут заменены.</p>
+        <div><button class="btn gold" data-action="mockData">Сгенерировать тестовые данные</button></div>
+      </div>
+      <div class="panel flex flex-col gap-3" style="border-color:rgba(255,77,94,.3)">
+        <h3 class="card-t">Сброс</h3>
+        <p class="muted" style="font-size:13.5px">Удаляет все привычки, историю, награды и профиль. Сначала сделай экспорт, если данные нужны.</p>
+        <div><button class="btn danger" data-action="resetAll">Стереть всё</button></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h3 class="card-t">Правила игры</h3>
+      <div style="overflow-x:auto;margin-top:8px"><table class="tbl"><thead><tr><th>Сложность</th><th>Выполнено</th><th>Монеты</th><th>Срыв серии ≥2</th><th>Срыв анти-привычки</th></tr></thead><tbody>
+      ${Object.values(DIFFICULTY).map(d => `<tr><td>${d.label}</td><td class="mono" style="color:var(--cyan)">+${d.xp} XP</td><td class="mono" style="color:var(--amber)">+${d.coins}</td><td class="mono" style="color:var(--magenta)">−${d.dmg} HP</td><td class="mono" style="color:var(--red)">−${d.antiDmg} HP</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="dim" style="font-size:12.5px;margin-top:10px">День на 100% восстанавливает ${PERFECT_DAY_HEAL} HP. При 0 HP уровень падает на 1, опыт уровня сгорает, HP восстанавливается полностью. Для следующего уровня нужно 100 XP плюс 40 за каждый пройденный.</p>
+    </div>`;
+}
+
+/* ============ 11. МОДАЛЬНЫЕ ОКНА ============ */
+let modalCleanup = null;
+function openModal(html, { wide = false, onMount } = {}) {
+  closeModal();
+  const root = $('#modalRoot');
+  root.innerHTML = `<div class="overlay" data-overlay><div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true">${html}</div></div>`;
+  const ov = root.firstElementChild;
+  ov.addEventListener('mousedown', e => { if (e.target === ov) closeModal(); });
+  const key = e => { if (e.key === 'Escape') closeModal(); };
+  document.addEventListener('keydown', key);
+  modalCleanup = () => document.removeEventListener('keydown', key);
+  onMount && onMount(ov.querySelector('.modal'));
+  const f = ov.querySelector('input:not([type=hidden]):not([type=radio]):not([type=checkbox]), textarea, button.primary'); if (f) setTimeout(() => f.focus(), 30);
+}
+function closeModal() { $('#modalRoot').innerHTML = ''; if (modalCleanup) { modalCleanup(); modalCleanup = null; } }
+const modalHead = (title, sub) => `<div class="flex items-start justify-between gap-3" style="margin-bottom:16px"><div><h2 class="display" style="font-size:19px;font-weight:700">${title}</h2>${sub ? `<p class="muted" style="font-size:13px;margin-top:3px">${sub}</p>` : ''}</div><button class="iconbtn" data-action="closeModal" aria-label="Закрыть">${svgIcon('<path d="M6 6l12 12M18 6L6 18"/>', 16)}</button></div>`;
+
+/** Подтверждение внутри страницы (системные confirm() в окне артефакта недоступны). */
+function askConfirm({ title, text, ok = 'Подтвердить', danger = false }) {
+  return new Promise(resolve => {
+    openModal(`${modalHead(title)}<p class="muted">${text}</p><div class="flex justify-end gap-2" style="margin-top:20px"><button class="btn" id="cf-no">Отмена</button><button class="btn ${danger ? 'danger' : 'primary'}" id="cf-yes">${ok}</button></div>`, {
+      onMount: m => {
+        m.querySelector('#cf-no').onclick = () => { closeModal(); resolve(false); };
+        m.querySelector('#cf-yes').onclick = () => { closeModal(); resolve(true); };
+        setTimeout(() => m.querySelector('#cf-yes').focus(), 30);
+      },
+    });
+  });
+}
+
+/** Форма создания / редактирования привычки. */
+function openHabitForm(id) {
+  const h = id ? byId(id) : null;
+  const v = h || { name: '', desc: '', category: 'sport', difficulty: 'medium', anti: false, schedule: { type: 'daily', days: [] } };
+  const dayChecked = d => v.schedule.type === 'daily' || v.schedule.days.includes(d);
+  openModal(`${modalHead(h ? 'Изменить привычку' : 'Новая привычка', h ? 'Изменение расписания пересчитает историческую статистику' : 'Опиши, что будешь делать и как часто')}
+    <form id="habitForm" class="flex flex-col gap-4" novalidate>
+      <div class="field"><label for="hf-name">Название</label><input class="input" id="hf-name" maxlength="60" value="${esc(v.name)}" placeholder="Например, Утренняя пробежка"></div>
+      <div class="field"><label for="hf-desc">Описание</label><textarea class="input" id="hf-desc" maxlength="200" placeholder="Необязательно: детали, цель, триггер">${esc(v.desc)}</textarea></div>
+      <label class="switch" for="hf-anti"><input type="checkbox" id="hf-anti" ${v.anti ? 'checked' : ''}><span class="track"></span><span><b>Анти-привычка</b><br><span class="dim" style="font-size:12.5px">То, что нужно НЕ делать. Срыв отнимает HP, чистый день даёт XP</span></span></label>
+      <div class="field"><span class="flabel">Категория</span><div class="chips">${CAT_KEYS.map(k => `<label class="chip" style="--c:${CATEGORIES[k].color}"><input type="radio" name="hf-cat" id="hf-cat-${k}" value="${k}" ${v.category === k ? 'checked' : ''}><span><i class="dot" style="--c:${CATEGORIES[k].color}"></i>${CATEGORIES[k].label}</span></label>`).join('')}</div></div>
+      <div class="field"><span class="flabel">Сложность</span><div class="chips">${Object.entries(DIFFICULTY).map(([k, d]) => `<label class="chip" style="--c:${k === 'easy' ? 'var(--lime)' : k === 'medium' ? 'var(--amber)' : 'var(--magenta)'}"><input type="radio" name="hf-diff" id="hf-diff-${k}" value="${k}" ${v.difficulty === k ? 'checked' : ''}><span>${d.label} <span class="mono dim" style="font-size:11px">+${d.xp} XP</span></span></label>`).join('')}</div></div>
+      <div class="field"><span class="flabel">Периодичность</span>
+        <div class="chips"><label class="chip"><input type="radio" name="hf-sch" id="hf-sch-daily" value="daily" ${v.schedule.type === 'daily' ? 'checked' : ''}><span>Каждый день</span></label><label class="chip"><input type="radio" name="hf-sch" id="hf-sch-days" value="days" ${v.schedule.type === 'days' ? 'checked' : ''}><span>Дни недели</span></label></div>
+        <div class="chips" id="hf-days" style="margin-top:6px" ${v.schedule.type === 'days' ? '' : 'hidden'}>${MON_FIRST.map(d => `<label class="chip"><input type="checkbox" name="hf-day" id="hf-day-${d}" value="${d}" ${dayChecked(d) ? 'checked' : ''}><span style="min-width:44px;justify-content:center">${WD_SHORT[d]}</span></label>`).join('')}</div>
+      </div>
+      <p class="err" id="hf-err" hidden></p>
+      <div class="flex justify-end gap-2"><button class="btn" type="button" data-action="closeModal">Отмена</button><button class="btn primary" type="submit">${h ? 'Сохранить' : 'Создать привычку'}</button></div>
+    </form>`, {
+    onMount: m => {
+      m.querySelectorAll('[name="hf-sch"]').forEach(r => r.addEventListener('change', () => { m.querySelector('#hf-days').hidden = m.querySelector('#hf-sch-days').checked === false; }));
+      m.querySelector('#habitForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = m.querySelector('#hf-name').value.trim(), err = m.querySelector('#hf-err');
+        const type = m.querySelector('[name="hf-sch"]:checked').value;
+        const days = [...m.querySelectorAll('[name="hf-day"]:checked')].map(x => +x.value);
+        if (!name) { err.textContent = 'Введи название привычки.'; err.hidden = false; return; }
+        if (type === 'days' && !days.length) { err.textContent = 'Выбери хотя бы один день недели.'; err.hidden = false; return; }
+        const data = { name, desc: m.querySelector('#hf-desc').value.trim(), anti: m.querySelector('#hf-anti').checked,
+          category: m.querySelector('[name="hf-cat"]:checked').value, difficulty: m.querySelector('[name="hf-diff"]:checked').value,
+          schedule: { type, days: type === 'days' ? days : [] } };
+        if (h) { Object.assign(h, data); toast('Привычка обновлена', 'good'); }
+        else { S.habits.push({ id: uid(), ...data, createdAt: todayKey(), archived: false, pauses: [] }); logEvent('habit', `Новая привычка: ${name}`); toast(`Привычка «${name}» создана`, 'good'); Sound.coin(); }
+        save(); closeModal(); render();
+      });
+    },
+  });
+}
+
+/* ---------- Утренний дайджест ---------- */
+/**
+ * Собирает сводку дня: отклонение продуктивности для текущего дня недели (из weekdayAnalysis),
+ * количество задач, итоги вчера, серии под угрозой и самую рискованную привычку (по EWMA-прогнозу).
+ */
+function openDigest(report) {
+  const t = todayKey(), w = weekday(t), hr = new Date().getHours();
+  const greet = hr < 5 ? 'Доброй ночи' : hr < 12 ? 'Доброе утро' : hr < 18 ? 'Добрый день' : 'Добрый вечер';
+  const wa = weekdayAnalysis(), dev = wa.dev[w];
+  const todayList = habitsOn(t, activeHabits()), normal = todayList.filter(h => !h.anti), anti = todayList.filter(h => h.anti);
+  let wdLine;
+  if (dev === null || wa.n < 14) wdLine = 'Данных о твоих днях недели пока мало, так что сегодня задаём планку сами.';
+  else if (dev <= -5) wdLine = `Обычно в этот день твоя продуктивность падает на ${Math.round(-dev)}%. Давай сломаем эту систему?`;
+  else if (dev >= 5) wdLine = `Обычно это один из твоих сильных дней: +${Math.round(dev)}% к среднему. Держи темп.`;
+  else wdLine = 'В этот день ты обычно держишься на своём среднем уровне.';
+  const y = yesterdayKey(), ys = dayStats(y);
+  const risky = normal.filter(h => currentStreak(h) >= 3).map(h => ({ h, s: currentStreak(h) })).sort((a, b) => b.s - a.s);
+  const weak = normal.map(h => ({ h, p: habitForecast(h) })).filter(x => x.p !== null).sort((a, b) => a.p - b.p)[0];
+  const r = report || { broken: [], hp: 0, clean: 0, xp: 0, perfect: 0, days: 0 };
+  openModal(`${modalHead('Утренний дайджест', fmtLong(t))}
+    <div class="digest-hero">
+      <div class="display" style="font-size:20px;font-weight:800">${greet}, ${esc(S.profile.name)}!</div>
+      <p style="margin-top:8px">Сегодня ${WD_FULL[w]}. ${wdLine}</p>
+      <p style="margin-top:6px">У тебя <b style="color:var(--cyan)">${normal.length} ${plural(normal.length, ['привычка', 'привычки', 'привычек'])}</b> на сегодня${anti.length ? ` и ${anti.length} ${plural(anti.length, ['анти-привычка', 'анти-привычки', 'анти-привычек'])} под контролем` : ''}.</p>
+    </div>
+    <ul class="feed" style="margin-top:14px">
+      ${ys.total ? `<li class="justify-between"><span class="muted">Вчера</span><span class="mono">${ys.ok}/${ys.total} · ${pct(ys.ok / ys.total)}</span></li>` : ''}
+      ${r.clean ? `<li class="justify-between"><span class="muted">Анти-привычки без срыва</span><span class="mono" style="color:var(--cyan)">+${r.xp} XP</span></li>` : ''}
+      ${r.perfect ? `<li class="justify-between"><span class="muted">Идеальные дни</span><span class="mono" style="color:var(--lime)">+${r.perfect * PERFECT_DAY_HEAL} HP</span></li>` : ''}
+      ${r.broken.length ? `<li class="flex-col" style="gap:2px"><span class="muted">Сорваны серии <span class="mono" style="color:var(--magenta)">−${r.hp} HP</span></span><span>${r.broken.slice(0, 3).map(b => `«${esc(b.name)}» (${b.streak} дн.)`).join(', ')}</span></li>` : ''}
+      ${risky.length ? `<li class="flex-col" style="gap:2px"><span class="muted">Не потеряй серии</span><span>${risky.slice(0, 3).map(x => `${esc(x.h.name)} ${streakBadge(x.s)}`).join(' ')}</span></li>` : ''}
+      ${weak && weak.p < .55 ? `<li class="flex-col" style="gap:2px"><span class="muted">Слабое место по прогнозу</span><span>«${esc(weak.h.name)}», шанс ${pct(weak.p)}. Начни с неё.</span></li>` : ''}
+      <li class="justify-between"><span class="muted">Здоровье</span><span class="mono" style="color:${S.profile.hp <= 30 ? 'var(--red)' : 'var(--magenta)'}">${S.profile.hp}/${MAX_HP} HP${S.profile.hp <= 30 ? ' · осторожно' : ''}</span></li>
+    </ul>
+    <div class="flex justify-end" style="margin-top:18px"><button class="btn primary" data-action="closeModal">Погнали</button></div>`);
+}
+
+/* ============ 12. ЭКСПОРТ / ИМПОРТ ============ */
+// Внутри встроенного окна (iframe) скачивание файлов запрещено — там оставляем только копирование.
+const EMBEDDED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+function openExport() {
+  const json = JSON.stringify(S, null, 2);
+  openModal(`${modalHead('Экспорт в JSON', 'Скопируй текст или скачай файл, затем импортируй на другом устройстве')}
+    <textarea class="input code" id="ex-json" readonly>${esc(json)}</textarea>
+    <p class="dim" style="font-size:12px;margin-top:8px">${EMBEDDED ? 'Скопируй JSON и сохрани его в файл или заметку. На другом устройстве вставь его в «Импорт JSON».' : 'Можно скопировать текст или скачать файл.'}</p>
+    <div class="flex flex-wrap justify-end gap-2" style="margin-top:14px">${EMBEDDED ? '' : '<button class="btn" id="ex-dl">Скачать файл</button>'}<button class="btn primary" id="ex-copy">Копировать</button></div>`, {
+    wide: true,
+    onMount: m => {
+      const ta = m.querySelector('#ex-json');
+      m.querySelector('#ex-copy').onclick = () => {
+        const fallback = () => { ta.focus(); ta.select(); toast('Текст выделен: нажми Ctrl+C / ⌘C', 'info'); };
+        try { navigator.clipboard.writeText(json).then(() => toast('JSON скопирован в буфер обмена', 'good'), fallback); } catch (e) { fallback(); }
+      };
+      if (m.querySelector('#ex-dl')) m.querySelector('#ex-dl').onclick = () => {
+        try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' })); a.download = `vibe-tracker-${todayKey()}.json`; document.body.appendChild(a); a.click(); a.remove(); }
+        catch (e) { toast('Скачивание недоступно, используй копирование', 'bad'); }
+      };
+    },
+  });
+}
+function openImport() {
+  openModal(`${modalHead('Импорт JSON', 'Загрузи файл экспорта или вставь его содержимое')}
+    <div class="field"><label for="im-file">Файл .json</label><input class="input" type="file" id="im-file" accept="application/json,.json"></div>
+    <div class="field" style="margin-top:12px"><label for="im-text">Или вставь JSON</label><textarea class="input code" id="im-text" style="min-height:160px" placeholder='{"version":2,"habits":[…]}'></textarea></div>
+    <p class="err" id="im-err" hidden></p>
+    <div class="flex justify-end gap-2" style="margin-top:14px"><button class="btn" data-action="closeModal">Отмена</button><button class="btn primary" id="im-go">Импортировать</button></div>`, {
+    wide: true,
+    onMount: m => {
+      const ta = m.querySelector('#im-text'), err = m.querySelector('#im-err');
+      m.querySelector('#im-file').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { ta.value = rd.result; }; rd.readAsText(f); };
+      m.querySelector('#im-go').onclick = async () => {
+        let data;
+        try { data = JSON.parse(ta.value); } catch (e) { err.textContent = 'Это не похоже на JSON. Проверь, что текст скопирован целиком.'; err.hidden = false; return; }
+        if (!data || !Array.isArray(data.habits) || typeof data.log !== 'object') { err.textContent = 'В файле нет списка привычек (habits) или журнала (log). Нужен файл экспорта Вайб-Трекера.'; err.hidden = false; return; }
+        const text = ta.value;
+        const ok = await askConfirm({ title: 'Заменить текущие данные?', text: `Будет загружено ${data.habits.length} ${plural(data.habits.length, ['привычка', 'привычки', 'привычек'])}. Текущие данные в этом браузере будут перезаписаны.`, ok: 'Импортировать' });
+        if (!ok) return;
+        S = migrate(JSON.parse(text)); processPastDays(); save(); render(); toast('Данные импортированы', 'good');
+      };
+    },
+  });
+}
+
+/* ============ 13. ЭФФЕКТЫ ============ */
+function toast(text, type = 'info') {
+  const el = document.createElement('div'); el.className = `toast ${type}`; el.textContent = text;
+  $('#toasts').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, 2800);
+}
+function floatText(anchor, text, color) {
+  const r = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 2, width: 0 };
+  const el = document.createElement('div'); el.className = 'float'; el.textContent = text; el.style.color = color;
+  el.style.left = `${r.left + r.width / 2}px`; el.style.top = `${r.top - 6}px`;
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1050);
+}
+// Простая система частиц на canvas: искры при отметке и конфетти при повышении уровня.
+const FX = { parts: [], running: false };
+function fxCanvas() { const c = $('#fx'); if (c.width !== innerWidth * devicePixelRatio) { c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio; } return c; }
+function fxLoop() {
+  const c = fxCanvas(), g = c.getContext('2d'), dpr = devicePixelRatio;
+  g.clearRect(0, 0, c.width, c.height);
+  FX.parts = FX.parts.filter(p => p.life > 0);
+  for (const p of FX.parts) {
+    p.x += p.vx; p.y += p.vy; p.vy += p.g; p.vx *= .985; p.life -= 1; p.rot += p.vr;
+    g.save(); g.globalAlpha = Math.min(1, p.life / 30); g.fillStyle = p.color; g.shadowColor = p.color; g.shadowBlur = 8;
+    g.translate(p.x * dpr, p.y * dpr); g.rotate(p.rot); g.fillRect(-p.s * dpr / 2, -p.s * dpr / 4, p.s * dpr, p.s * dpr / 2); g.restore();
+  }
+  if (FX.parts.length) requestAnimationFrame(fxLoop); else { FX.running = false; g.clearRect(0, 0, c.width, c.height); }
+}
+function spawn(parts) { if (reduceMotion()) return; FX.parts.push(...parts); if (!FX.running) { FX.running = true; requestAnimationFrame(fxLoop); } }
+function burst(anchor, color) {
+  if (!anchor.getBoundingClientRect) return;
+  const r = anchor.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+  spawn(Array.from({ length: 16 }, () => { const a = Math.random() * Math.PI * 2, v = 2 + Math.random() * 3; return { x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: .08, life: 30 + Math.random() * 20, s: 4 + Math.random() * 3, color, rot: 0, vr: .2 }; }));
+}
+function confetti() {
+  const cols = ['#29e6ff', '#ff3d8e', '#ffc23d', '#4dffa6', '#9d8cff'];
+  spawn(Array.from({ length: 140 }, () => ({ x: innerWidth / 2 + (Math.random() - .5) * 200, y: innerHeight * .35, vx: (Math.random() - .5) * 14, vy: -Math.random() * 11 - 3, g: .22, life: 90 + Math.random() * 60, s: 6 + Math.random() * 6, color: cols[Math.floor(Math.random() * cols.length)], rot: Math.random() * 6, vr: (Math.random() - .5) * .4 })));
+}
+
+/* ============ 14. ОБРАБОТЧИКИ И ЗАПУСК ============ */
+function setView(v) { if (!VIEWS.some(x => x.id === v)) v = 'today'; view = v; if (location.hash.slice(1) !== v) { try { history.replaceState(null, '', '#' + v); } catch (e) { location.hash = v; } } render(); window.scrollTo({ top: 0 }); }
+const actions = {
+  tab: t => { Sound.click(); setView(t.dataset.view); },
+  toggle: t => toggleHabit(t.dataset.id, viewDate, t),
+  prevDay: () => { const m = addDays(todayKey(), -7); if (viewDate > m) { viewDate = addDays(viewDate, -1); render(); } },
+  nextDay: () => { if (viewDate < todayKey()) { viewDate = addDays(viewDate, 1); render(); } },
+  goToday: () => { viewDate = todayKey(); render(); },
+  newHabit: () => openHabitForm(),
+  editHabit: t => openHabitForm(t.dataset.id),
+  archiveHabit: async t => {
+    const h = byId(t.dataset.id);
+    if (!await askConfirm({ title: 'Отправить в архив?', text: `«${esc(h.name)}» пропадёт из списка дня. История останется в статистике, привычку можно вернуть.`, ok: 'В архив' })) return;
+    h.archived = true; h.archivedAt = todayKey(); logEvent('archive', `В архив: ${h.name}`); save(); render(); toast('Привычка в архиве');
+  },
+  restoreHabit: t => {
+    const h = byId(t.dataset.id), y = yesterdayKey();
+    // Время в архиве записываем как паузу, чтобы эти дни не считались пропусками.
+    if (h.archivedAt && h.archivedAt <= y) h.pauses.push({ from: h.archivedAt, to: y });
+    h.archived = false; delete h.archivedAt; save(); render(); toast(`«${h.name}» снова в строю`, 'good');
+  },
+  deleteHabit: async t => {
+    const h = byId(t.dataset.id);
+    if (!await askConfirm({ title: 'Удалить навсегда?', text: `«${esc(h.name)}» и вся её история будут стёрты. Графики прошлых периодов изменятся. Это нельзя отменить.`, ok: 'Удалить', danger: true })) return;
+    S.habits = S.habits.filter(x => x.id !== h.id);
+    for (const k of Object.keys(S.log)) { delete S.log[k][h.id]; if (!Object.keys(S.log[k]).length) delete S.log[k]; }
+    save(); render(); toast('Привычка удалена');
+  },
+  catFilter: t => { catFilter = t.value; render(); },
+  lineMode: t => { lineMode = t.dataset.mode; render(); },
+  buy: t => {
+    const r = S.rewards.find(x => x.id === t.dataset.id); if (!r || S.profile.coins < r.cost) return;
+    S.profile.coins -= r.cost; S.purchases.unshift({ id: uid(), name: r.name, icon: r.icon, cost: r.cost, at: Date.now() });
+    logEvent('buy', `Куплено: ${r.name} (−${r.cost})`); Sound.coin(); burst(t, '#ffc23d'); toast(`${r.icon} Награда получена: ${r.name}. Наслаждайся`, 'gold'); save(); render();
+  },
+  deleteReward: async t => {
+    const r = S.rewards.find(x => x.id === t.dataset.id);
+    if (!await askConfirm({ title: 'Удалить награду?', text: `«${esc(r.name)}» исчезнет из магазина. История покупок сохранится.`, ok: 'Удалить', danger: true })) return;
+    S.rewards = S.rewards.filter(x => x.id !== r.id); save(); render();
+  },
+  soundToggle: () => { S.settings.sound = !S.settings.sound; save(); renderHUD(); if (view === 'data') renderData(); if (S.settings.sound) Sound.check(); },
+  soundSwitch: t => { S.settings.sound = t.checked; save(); renderHUD(); if (S.settings.sound) Sound.check(); },
+  showDigest: () => openDigest(),
+  closeModal: () => closeModal(),
+  exportJson: () => openExport(),
+  importJson: () => openImport(),
+  mockData: async () => {
+    if (S.habits.length && !S.settings.demo) {
+      if (!await askConfirm({ title: 'Заменить данные тестовыми?', text: 'Твои привычки и история будут заменены сгенерированной историей за 90 дней. Сделай экспорт, если данные нужны.', ok: 'Сгенерировать', danger: true })) return;
+    }
+    const rep = generateMockData(); save(); viewDate = todayKey(); render();
+    toast(`Сгенерировано 90 дней истории · уровень ${S.profile.level}`, 'gold'); Sound.levelUp(); confetti();
+    void rep;
+  },
+  startClean: async () => {
+    if (!await askConfirm({ title: 'Начать с чистого листа?', text: 'Тестовая история будет удалена. Ты начнёшь с 1 уровня и пустым списком привычек.', ok: 'Начать' })) return;
+    S = defaultState(); S.settings.lastDigest = todayKey(); save(); viewDate = todayKey(); setView('today'); openHabitForm();
+  },
+  resetAll: async () => {
+    if (!await askConfirm({ title: 'Стереть всё?', text: 'Привычки, история, награды и профиль будут удалены из этого браузера. Отменить нельзя.', ok: 'Стереть', danger: true })) return;
+    S = defaultState(); S.settings.lastDigest = todayKey(); save(); viewDate = todayKey(); render(); toast('Все данные удалены');
+  },
+};
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-action]'); if (!t || t.tagName === 'INPUT') return;
+  const fn = actions[t.dataset.action]; if (fn) { e.preventDefault(); fn(t, e); }
+});
+document.addEventListener('change', e => {
+  const t = e.target; if (t.tagName !== 'INPUT' || !t.dataset.action) return;
+  const fn = actions[t.dataset.action]; if (fn) fn(t, e);
+});
+document.addEventListener('submit', e => {
+  if (e.target.id === 'rewardForm') {
+    e.preventDefault();
+    const name = $('#rw-name').value.trim(), cost = Math.round(+$('#rw-cost').value), icon = (document.querySelector('[name="rw-icon"]:checked') || {}).value || '🎁';
+    if (!name || !(cost >= 10)) { toast('Укажи название и цену от 10 монет', 'bad'); return; }
+    S.rewards.push({ id: uid(), name, cost, icon }); save(); render(); toast(`Награда «${name}» добавлена`, 'good'); Sound.coin();
+  }
+  if (e.target.id === 'profileForm') {
+    e.preventDefault();
+    S.profile.name = $('#pf-name').value.trim() || 'Нетраннер'; save(); render(); toast('Профиль сохранён', 'good');
+  }
+});
+// Подсказка по клеткам сетки активности
+document.addEventListener('mouseover', e => {
+  const c = e.target.closest && e.target.closest('.agrid .cell[data-k]'); if (!c) return;
+  const ok = +c.dataset.ok, t = +c.dataset.t, info = $('#gridInfo');
+  if (info) info.innerHTML = `<span style="color:var(--fg)">${fmtLong(c.dataset.k)}</span> · ${t ? `${ok} из ${t} · ${Math.round(ok / t * 100)}%` : 'ничего не запланировано'}`;
+});
+window.addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v && v !== view && VIEWS.some(x => x.id === v)) { view = v; render(); } });
+let resizeT; window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => fxCanvas(), 150); });
+// Если вкладка была открыта через полночь — закрываем прошедший день.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !S) return;
+  if (S.settings.lastProcessed < yesterdayKey()) { const rep = processPastDays(); viewDate = todayKey(); save(); render(); if (S.settings.lastDigest !== todayKey()) { S.settings.lastDigest = todayKey(); save(); openDigest(rep); } }
+});
+
+function boot() {
+  S = loadState();
+  let report = null;
+  if (!S) { report = generateMockData(); report = { broken: [], hp: 0, clean: 0, xp: 0, perfect: 0, days: 0 }; }
+  else report = processPastDays();
+  const v = location.hash.slice(1); view = VIEWS.some(x => x.id === v) ? v : 'today';
+  save(); render();
+  if (S.settings.lastDigest !== todayKey()) { S.settings.lastDigest = todayKey(); save(); openDigest(report); }
+}
+boot();
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
+</script>
+</body>
+</html>
