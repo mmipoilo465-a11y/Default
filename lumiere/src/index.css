@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-cream font-sans text-ink antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  ::selection {
+    @apply bg-peach-200 text-violet-900;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-violet-400 ring-offset-2 ring-offset-cream;
+  }
+}
+
+@layer utilities {
+  /* Штриховка для прошедших окон в расписании */
+  .bg-hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      rgb(29 24 48 / 0.05) 0 2px,
+      transparent 2px 7px
+    );
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

@@ -30,3 +30,7 @@ npm run build:pwa   # обновит docs/ и версию кэша service work
 
 В `docs/salon/` лежит собранное PWA онлайн-записи в салон красоты (исходники — ветка `claude/salon-booking-app`, папка `salon/`):
 **https://mmipoilo465-a11y.github.io/Default/salon/**
+
+## Lumière — запись в салон (фиолетово-персиковая версия)
+
+Исходники в папке `lumiere/` (React + Tailwind + Lucide, локальное состояние). Запуск: `cd lumiere && npm install && npm run dev`. Подробности — в `lumiere/README.md`.
