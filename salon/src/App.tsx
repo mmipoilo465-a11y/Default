@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { Header, type Route } from './components/Header';
+import { InstallPrompt } from './components/InstallPrompt';
 import { BookingWizard } from './features/booking/BookingWizard';
 import { AdminPanel } from './features/admin/AdminPanel';
 import { AppStoreProvider } from './store/AppStore';
@@ -37,6 +38,7 @@ export default function App() {
                 className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[420px] bg-[radial-gradient(60%_60%_at_50%_0%,rgb(9_121_105/0.07),transparent)] dark:bg-[radial-gradient(60%_60%_at_50%_0%,rgb(9_121_105/0.14),transparent)]"
               />
               <Header route={route} onRoute={setRoute} />
+              <InstallPrompt />
               <AnimatePresence mode="wait">
                 <motion.main key={route} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
                   {route === 'admin' ? <AdminPanel /> : <BookingWizard />}
