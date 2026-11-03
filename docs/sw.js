@@ -16,6 +16,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // Соседнее приложение Atelier (docs/salon/) обслуживает свой service worker
+  if (url.origin === location.origin && url.pathname.includes('/salon/')) return;
   // Страница: сначала сеть (чтобы обновления приходили сразу), без сети — из кэша.
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', copy)); return r; })

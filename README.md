@@ -25,3 +25,8 @@ Settings → Pages → Build and deployment → Source: **Deploy from a branch**
 npm install
 npm run build:pwa   # обновит docs/ и версию кэша service worker
 ```
+
+## Atelier — запись в салон
+
+В `docs/salon/` лежит собранное PWA онлайн-записи в салон красоты (исходники — ветка `claude/salon-booking-app`, папка `salon/`):
+**https://mmipoilo465-a11y.github.io/Default/salon/**
