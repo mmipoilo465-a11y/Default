@@ -182,7 +182,7 @@ export function BookingPage() {
               </div>
 
               {/* Навигация: прилипает к низу экрана на телефоне */}
-              <div className="sticky bottom-4 z-20 mt-10">
+              <div className="sticky bottom-[calc(1rem+env(safe-area-inset-bottom))] z-20 mt-10">
                 <div className="flex items-center gap-3 rounded-full bg-white/90 p-2 shadow-lift ring-1 ring-ink/5 backdrop-blur-xl">
                   <Button
                     variant="ghost"

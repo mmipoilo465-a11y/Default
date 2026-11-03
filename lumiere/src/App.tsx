@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Header } from './components/Header';
+import { InstallBanner } from './components/InstallBanner';
+import { useToast } from './store/Toast';
 import { BookingPage } from './features/booking/BookingPage';
 import { AdminPanel } from './features/admin/AdminPanel';
 import type { Mode } from './lib/types';
@@ -9,6 +11,19 @@ const initialMode = (): Mode => (window.location.hash === '#admin' ? 'admin' : '
 
 export default function App() {
   const [mode, setMode] = useState<Mode>(initialMode);
+  const toast = useToast();
+
+  // Подсказка о работе без сети: данные и так локальные, приложение продолжает работать.
+  useEffect(() => {
+    const offline = () => toast('Нет сети — приложение работает офлайн', 'error');
+    const online = () => toast('Соединение восстановлено');
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', online);
+    return () => {
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('online', online);
+    };
+  }, [toast]);
 
   useEffect(() => {
     history.replaceState(null, '', mode === 'admin' ? '#admin' : window.location.pathname + window.location.search);
@@ -24,6 +39,7 @@ export default function App() {
       </div>
 
       <Header mode={mode} onModeChange={setMode} />
+      <InstallBanner />
 
       <AnimatePresence mode="wait">
         <motion.main
@@ -32,7 +48,7 @@ export default function App() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -8 }}
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-8 sm:pt-16"
+          className="mx-auto max-w-6xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-10 sm:px-8 sm:pt-16"
         >
           {mode === 'client' ? <BookingPage /> : <AdminPanel />}
         </motion.main>

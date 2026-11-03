@@ -33,4 +33,7 @@ npm run build:pwa   # обновит docs/ и версию кэша service work
 
 ## Lumière — запись в салон (фиолетово-персиковая версия)
 
-Исходники в папке `lumiere/` (React + Tailwind + Lucide, локальное состояние). Запуск: `cd lumiere && npm install && npm run dev`. Подробности — в `lumiere/README.md`.
+Устанавливаемое веб-приложение (PWA): **https://mmipoilo465-a11y.github.io/Default/lumiere/**
+
+Исходники — папка `lumiere/` (React + Tailwind + Lucide, локальное состояние), сборка — `docs/lumiere/`.
+Пересборка: `cd lumiere && npm install && npm run publish`. Подробности — в `lumiere/README.md`.

@@ -26,7 +26,7 @@ export function Logo() {
 
 export function Header({ mode, onModeChange }: { mode: Mode; onModeChange: (m: Mode) => void }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-ink/5 bg-cream/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-ink/5 bg-cream/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-6xl items-center justify-between gap-4 px-4 sm:px-8">
         <Logo />
         <div role="tablist" aria-label="Режим" className="flex rounded-full bg-white p-1 shadow-soft ring-1 ring-ink/5">
