@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { LogOut, RotateCcw } from 'lucide-react';
 import { MASTERS } from '../../data/catalog';
 import type { Appointment } from '../../lib/types';
 import { longDate, nextDays, toKey } from '../../lib/time';
@@ -21,7 +21,7 @@ function greeting(now: Date): string {
   return 'Доброй ночи';
 }
 
-export function AdminPanel() {
+export function AdminPanel({ onLogout }: { onLogout: () => void }) {
   const { appointments, cancelAppointment, resetDemo } = useAppStore();
   const toast = useToast();
   const now = useNow();
@@ -50,16 +50,22 @@ export function AdminPanel() {
             {longDate(toKey(now))} · {MASTERS.length} мастеров в команде
           </p>
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            resetDemo();
-            toast('Демо-данные пересозданы');
-          }}
-        >
-          <RotateCcw className="h-4 w-4" />
-          Сбросить демо-данные
-        </Button>
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              resetDemo();
+              toast('Демо-данные пересозданы');
+            }}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Сбросить демо-данные
+          </Button>
+          <Button variant="ghost" onClick={onLogout}>
+            <LogOut className="h-4 w-4" />
+            Выйти
+          </Button>
+        </div>
       </section>
 
       <StatCards appointments={appointments} now={now} />

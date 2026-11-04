@@ -1,7 +1,7 @@
 /* Service worker Lumière: приложение целиком работает офлайн.
    Версию кэша и список файлов подставляет сборка (vite.config.ts). */
-const VERSION = 'lumiere-6cca7a771d';
-const SHELL = ["./","./assets/index-Dba2w5Gd.js","./assets/index-DkWae0S4.css","./manifest.webmanifest","./favicon.svg","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-maskable-512.png","./icons/apple-touch-icon.png"];
+const VERSION = 'lumiere-eaf0b007e4';
+const SHELL = ["./","./assets/index-C8OIL804.js","./assets/index-DZbvvSzL.css","./manifest.webmanifest","./favicon.svg","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-maskable-512.png","./icons/apple-touch-icon.png"];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
