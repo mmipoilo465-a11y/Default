@@ -52,6 +52,20 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }
   }, [appointments]);
 
+  // Страница записи и панель — разные вкладки: подхватываем изменения друг друга.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY || !e.newValue) return;
+      try {
+        setAppointments((JSON.parse(e.newValue) as Persisted).appointments);
+      } catch {
+        /* повреждённые данные игнорируем */
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   const addAppointment = useCallback((a: Appointment) => setAppointments((list) => [...list, a]), []);
   const cancelAppointment = useCallback(
     (id: string) =>

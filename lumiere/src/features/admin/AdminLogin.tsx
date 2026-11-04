@@ -1,16 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AnimatePresence, motion, useAnimationControls } from 'framer-motion';
-import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, LockKeyhole } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Loader2, LockKeyhole } from 'lucide-react';
 import { Button, Eyebrow } from '../../components/ui';
 import { LOCK_MS, MAX_ATTEMPTS, canVerify, lockedUntil, setLock, verifyPassword } from '../../lib/auth';
 import { cn } from '../../lib/cn';
 
-interface Props {
-  onSuccess: (remember: boolean) => void;
-  onBack: () => void;
-}
-
-export function AdminLogin({ onSuccess, onBack }: Props) {
+export function AdminLogin({ onSuccess }: { onSuccess: (remember: boolean) => void }) {
   const [password, setPassword] = useState('');
   const [visible, setVisible] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -161,12 +156,7 @@ export function AdminLogin({ onSuccess, onBack }: Props) {
         </form>
       </motion.div>
 
-      <div className="mt-6 text-center">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4" />
-          Вернуться к записи
-        </Button>
-      </div>
+      <p className="mt-6 text-center text-xs text-ink/40">Пароль выдаёт владелец салона. Клиенты записываются на основной странице.</p>
     </div>
   );
 }

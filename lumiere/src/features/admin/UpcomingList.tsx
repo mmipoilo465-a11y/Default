@@ -10,6 +10,8 @@ import { cn } from '../../lib/cn';
 
 /** Сколько записей дня показывать до раскрытия. */
 const PREVIEW = 5;
+/** Сколько ближайших дней показывать до кнопки «Показать все дни». */
+const DAYS_PREVIEW = 3;
 
 interface Props {
   appointments: Appointment[];
@@ -21,6 +23,7 @@ export function UpcomingList({ appointments, now, onOpen }: Props) {
   const [query, setQuery] = useState('');
   const [masterId, setMasterId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [allDays, setAllDays] = useState(false);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,12 +46,15 @@ export function UpcomingList({ appointments, now, onOpen }: Props) {
   }, [appointments, now, query, masterId]);
 
   const total = groups.reduce((s, [, list]) => s + list.length, 0);
+  // Без поиска и фильтра показываем ближайшие дни, остальные — по кнопке.
+  const filtered = Boolean(query.trim() || masterId);
+  const visibleGroups = allDays || filtered ? groups : groups.slice(0, DAYS_PREVIEW);
 
   return (
     <section className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <h2 className="font-display text-3xl font-semibold tracking-tight">Предстоящие записи</h2>
+          <h2 className="font-display text-3xl font-semibold tracking-tight">Все предстоящие записи</h2>
           <p className="mt-1 text-sm text-ink/50">{total} записей · нажмите, чтобы открыть детали</p>
         </div>
         <label className="flex h-12 items-center gap-3 rounded-full bg-white px-5 ring-1 ring-ink/10 transition focus-within:ring-2 focus-within:ring-violet-400 sm:w-72">
@@ -91,7 +97,7 @@ export function UpcomingList({ appointments, now, onOpen }: Props) {
         </div>
       ) : (
         <div className="space-y-10">
-          {groups.map(([date, list]) => (
+          {visibleGroups.map(([date, list]) => (
             <div key={date}>
               <h3 className="mb-3 flex items-baseline gap-3 px-1">
                 <span className="font-semibold">{relativeDay(date, now)}</span>
@@ -102,7 +108,7 @@ export function UpcomingList({ appointments, now, onOpen }: Props) {
               <ul className="overflow-hidden rounded-[28px] bg-white shadow-soft ring-1 ring-ink/5">
                 <AnimatePresence initial={false}>
                   {(expanded.has(date) || query ? list : list.slice(0, PREVIEW)).map((a) => (
-                    <Row key={a.id} appointment={a} onOpen={onOpen} />
+                    <AppointmentRow key={a.id} appointment={a} onOpen={onOpen} />
                   ))}
                 </AnimatePresence>
                 {list.length > PREVIEW && !query && (
@@ -127,13 +133,25 @@ export function UpcomingList({ appointments, now, onOpen }: Props) {
               </ul>
             </div>
           ))}
+          {visibleGroups.length < groups.length && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setAllDays(true)}
+                className="inline-flex h-11 items-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-violet-700 shadow-soft ring-1 ring-ink/5 transition hover:ring-violet-300"
+              >
+                Показать все дни · ещё {groups.length - visibleGroups.length}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </section>
   );
 }
 
-function Row({ appointment: a, onOpen }: { appointment: Appointment; onOpen: (a: Appointment) => void }) {
+export function AppointmentRow({ appointment: a, onOpen }: { appointment: Appointment; onOpen: (a: Appointment) => void }) {
   const service = serviceById(a.serviceId);
   const master = masterById(a.masterId);
   return (

@@ -1,5 +1,4 @@
 export type Category = 'haircut' | 'styling' | 'coloring';
-export type Mode = 'client' | 'admin';
 
 export interface Service {
   id: string;

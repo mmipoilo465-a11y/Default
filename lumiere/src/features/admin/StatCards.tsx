@@ -1,23 +1,31 @@
 import { motion } from 'framer-motion';
-import { CalendarCheck2, Gauge, Hourglass, Wallet, type LucideIcon } from 'lucide-react';
+import { Gauge, Receipt, TrendingUp, Wallet, type LucideIcon } from 'lucide-react';
 import { MASTERS } from '../../data/catalog';
 import type { Appointment } from '../../lib/types';
-import { appointmentsOn, dayLoad, isUpcoming } from '../../lib/schedule';
+import { appointmentsOn, dayLoad } from '../../lib/schedule';
 import { formatPrice, toKey } from '../../lib/time';
 import { cn } from '../../lib/cn';
 
-export function StatCards({ appointments, now }: { appointments: Appointment[]; now: Date }) {
+interface Props {
+  appointments: Appointment[];
+  days: string[];
+  now: Date;
+}
+
+export function StatCards({ appointments, days, now }: Props) {
   const today = toKey(now);
   const todays = appointmentsOn(appointments, today);
+  const week = days.flatMap((d) => appointmentsOn(appointments, d));
+  const sum = (list: Appointment[]) => list.reduce((s, a) => s + a.price, 0);
+  const weekRevenue = sum(week);
   const load = dayLoad(appointments, MASTERS, today, now);
-  const upcoming = appointments.filter((a) => isUpcoming(a, now));
-  const online = upcoming.filter((a) => a.source === 'online').length;
+  const online = week.filter((a) => a.source === 'online').length;
 
   const cards: { label: string; value: string; hint: string; icon: LucideIcon; accent?: boolean }[] = [
-    { label: 'Записей сегодня', value: String(todays.length), hint: `${todays.filter((a) => isUpcoming(a, now)).length} ещё впереди`, icon: CalendarCheck2, accent: true },
-    { label: 'Выручка за день', value: formatPrice(todays.reduce((s, a) => s + a.price, 0)), hint: 'по подтверждённым записям', icon: Wallet },
+    { label: 'Выручка сегодня', value: formatPrice(sum(todays)), hint: `${todays.length} записей`, icon: Wallet, accent: true },
+    { label: 'Выручка за 7 дней', value: formatPrice(weekRevenue), hint: online ? `в т. ч. ${online} онлайн-записей` : `${week.length} записей`, icon: TrendingUp },
+    { label: 'Средний чек', value: formatPrice(week.length ? Math.round(weekRevenue / week.length) : 0), hint: 'за 7 дней', icon: Receipt },
     { label: 'Загрузка сегодня', value: `${load.total ? Math.round((load.busy / load.total) * 100) : 0}%`, hint: `${load.free} свободных окон по 30 мин`, icon: Gauge },
-    { label: 'Предстоящих', value: String(upcoming.length), hint: online ? `${online} новых онлайн` : 'на 7 дней вперёд', icon: Hourglass },
   ];
 
   return (
@@ -42,7 +50,7 @@ export function StatCards({ appointments, now }: { appointments: Appointment[]; 
             <Icon className="h-5 w-5" />
           </span>
           <p className={cn('mt-6 text-xs font-medium sm:text-sm', accent ? 'text-white/70' : 'text-ink/50')}>{label}</p>
-          <p className="mt-1 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{value}</p>
+          <p className="mt-1 font-display text-[26px] font-semibold leading-tight tracking-tight sm:text-4xl">{value}</p>
           <p className={cn('mt-2 text-xs', accent ? 'text-white/60' : 'text-ink/40')}>{hint}</p>
         </motion.div>
       ))}

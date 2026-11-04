@@ -11,8 +11,6 @@ interface InstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const DISMISS_KEY = 'lumiere.install.dismissed';
-
 const isStandalone = () =>
   window.matchMedia('(display-mode: standalone)').matches ||
   (navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -20,19 +18,27 @@ const isStandalone = () =>
 const isIos = () =>
   /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-function wasDismissed(): boolean {
+function wasDismissed(key: string): boolean {
   try {
-    return localStorage.getItem(DISMISS_KEY) === '1';
+    return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
 }
 
-export function InstallBanner() {
+interface InstallBannerProps {
+  /** Ключ, под которым запоминается «больше не показывать». */
+  storageKey: string;
+  icon: string;
+  title: string;
+  subtitle: string;
+}
+
+export function InstallBanner({ storageKey, icon, title, subtitle }: InstallBannerProps) {
   const toast = useToast();
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
   const [ios] = useState(() => isIos() && !isStandalone());
-  const [dismissed, setDismissed] = useState(() => isStandalone() || wasDismissed());
+  const [dismissed, setDismissed] = useState(() => isStandalone() || wasDismissed(storageKey));
   const [iosHelp, setIosHelp] = useState(false);
 
   useEffect(() => {
@@ -43,7 +49,7 @@ export function InstallBanner() {
     const onInstalled = () => {
       setPromptEvent(null);
       setDismissed(true);
-      toast('Lumière установлен на главный экран');
+      toast('Приложение установлено на главный экран');
     };
     window.addEventListener('beforeinstallprompt', onPrompt);
     window.addEventListener('appinstalled', onInstalled);
@@ -56,7 +62,7 @@ export function InstallBanner() {
   const dismiss = () => {
     setDismissed(true);
     try {
-      localStorage.setItem(DISMISS_KEY, '1');
+      localStorage.setItem(storageKey, '1');
     } catch {
       /* не критично */
     }
@@ -87,10 +93,10 @@ export function InstallBanner() {
             className="mx-auto max-w-6xl overflow-hidden px-4 sm:px-8"
           >
             <div className="mt-4 flex items-center gap-4 rounded-3xl bg-white p-3 pr-2 shadow-soft ring-1 ring-ink/5 sm:p-4">
-              <img src="./icons/icon-192.png" alt="" className="h-12 w-12 shrink-0 rounded-2xl" />
+              <img src={icon} alt="" className="h-12 w-12 shrink-0 rounded-2xl" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">Приложение Lumière</p>
-                <p className="truncate text-xs text-ink/50">Иконка на экране и работа офлайн</p>
+                <p className="truncate text-sm font-semibold">{title}</p>
+                <p className="truncate text-xs text-ink/50">{subtitle}</p>
               </div>
               <Button onClick={install} className="h-10 shrink-0 px-4">
                 Установить
@@ -111,7 +117,7 @@ export function InstallBanner() {
           <Step n={2} icon={<SquarePlus className="h-4 w-4" />}>
             Выберите «На экран „Домой“»
           </Step>
-          <Step n={3}>Нажмите «Добавить» — иконка Lumière появится рядом с другими приложениями</Step>
+          <Step n={3}>Нажмите «Добавить» — иконка появится рядом с другими приложениями</Step>
         </ol>
         <Button className="mt-8 w-full" onClick={() => setIosHelp(false)}>
           Понятно

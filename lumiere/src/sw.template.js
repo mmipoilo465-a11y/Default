@@ -21,16 +21,20 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Страница: сначала сеть (обновления приходят сразу), без сети — из кэша
+  // Страница: сначала сеть (обновления приходят сразу), без сети — из кэша.
+  // У записи и панели руководителя свои страницы, поэтому и кэшируются они отдельно.
   if (req.mode === 'navigate') {
+    const page = new URL(url.pathname.includes('/admin/') ? './admin/' : './', self.registration.scope).href;
     e.respondWith(
       fetch(req)
         .then((r) => {
-          const copy = r.clone();
-          caches.open(VERSION).then((c) => c.put('./', copy));
+          if (r.ok) {
+            const copy = r.clone();
+            caches.open(VERSION).then((c) => c.put(page, copy));
+          }
           return r;
         })
-        .catch(() => caches.match('./')),
+        .catch(() => caches.match(page)),
     );
     return;
   }

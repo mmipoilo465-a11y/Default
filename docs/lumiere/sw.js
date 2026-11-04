@@ -1,7 +1,7 @@
 /* Service worker Lumière: приложение целиком работает офлайн.
    Версию кэша и список файлов подставляет сборка (vite.config.ts). */
-const VERSION = 'lumiere-eaf0b007e4';
-const SHELL = ["./","./assets/index-C8OIL804.js","./assets/index-DZbvvSzL.css","./manifest.webmanifest","./favicon.svg","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-maskable-512.png","./icons/apple-touch-icon.png"];
+const VERSION = 'lumiere-6535a9f84e';
+const SHELL = ["./","./admin/","./assets/admin-BRpGnrHm.js","./assets/shared-DBYV8Ody.js","./assets/styles-DNj_r0d7.css","./assets/vendor-BCZmEQh7.js","./assets/visitor-urXIuCTn.js","./manifest.webmanifest","./admin/manifest.webmanifest","./icons/admin-192.png","./icons/admin-512.png","./icons/admin-maskable-512.png","./icons/admin-apple-touch-icon.png","./favicon.svg","./icons/icon-192.png","./icons/icon-512.png","./icons/icon-maskable-512.png","./icons/apple-touch-icon.png"];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -21,16 +21,20 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Страница: сначала сеть (обновления приходят сразу), без сети — из кэша
+  // Страница: сначала сеть (обновления приходят сразу), без сети — из кэша.
+  // У записи и панели руководителя свои страницы, поэтому и кэшируются они отдельно.
   if (req.mode === 'navigate') {
+    const page = new URL(url.pathname.includes('/admin/') ? './admin/' : './', self.registration.scope).href;
     e.respondWith(
       fetch(req)
         .then((r) => {
-          const copy = r.clone();
-          caches.open(VERSION).then((c) => c.put('./', copy));
+          if (r.ok) {
+            const copy = r.clone();
+            caches.open(VERSION).then((c) => c.put(page, copy));
+          }
           return r;
         })
-        .catch(() => caches.match('./')),
+        .catch(() => caches.match(page)),
     );
     return;
   }
