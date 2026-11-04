@@ -94,7 +94,7 @@ data/
 2. Подключитесь к нему (в панели провайдера обычно есть кнопка «Консоль»).
 3. Выполните три команды:
    ```bash
-   git clone -b zapis --single-branch https://github.com/mmipoilo465-a11y/default.git zapis && cd zapis
+   git clone https://github.com/<ваш-аккаунт>/<репозиторий>.git zapis && cd zapis
    SEED_EXAMPLES=1 bash deploy/install.sh
    cat data/initial-passwords.txt
    ```

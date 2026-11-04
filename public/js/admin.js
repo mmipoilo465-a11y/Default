@@ -6,6 +6,8 @@ import { paidOf, dueOf, STATUS } from '/core/stats.js';
 const BOOT = window.__BOOT__;
 const BASE = `/${BOOT.slug}`;
 const A = (p, o) => api(`${BASE}/api/admin${p}`, o);
+const LINKS = { site: `${BASE}/`, privacy: `${BASE}/privacy`, ...(window.__LINKS__ || {}) };
+const ext = (href) => (href.startsWith('#') ? '' : 'target="_blank"');
 applyAccent(BOOT.accent);
 
 const st = { cfg: null, today: null, view: 'bookings', mode: 'day', date: null, data: null, setTab: 'studio', chat: [] };
@@ -24,8 +26,9 @@ function renderLogin() {
     <label class="field"><span>Почта</span><input class="input" name="email" type="email" autocomplete="username" required></label>
     <label class="field"><span>Пароль</span><input class="input" name="password" type="password" autocomplete="current-password" required></label>
     <button class="btn primary lg block">Войти</button>
-    <a class="muted" style="font-size:14px;text-align:center" href="${BASE}/">← На страницу студии</a>
+    <a class="muted" style="font-size:14px;text-align:center" href="${LINKS.site}">← На страницу студии</a>${window.__DEMO_LOGIN__ ? `<p class="dim" style="font-size:13px;margin:0;text-align:center">Демо: ${esc(window.__DEMO_LOGIN__.email)} / ${esc(window.__DEMO_LOGIN__.password)} — уже подставлены</p>` : ''}
   </form></div>`;
+  if (window.__DEMO_LOGIN__) { $('#lf').email.value = window.__DEMO_LOGIN__.email; $('#lf').password.value = window.__DEMO_LOGIN__.password; }
   $('#lf').onsubmit = async (e) => {
     e.preventDefault();
     const btn = $('button', e.target); busy(btn);
@@ -44,11 +47,11 @@ function renderShell() {
       <div class="brand">${mark}<div><b>${esc(c.name)}</b><small>Кабинет</small></div></div>
       ${NAV.map(([k, i, l]) => `<button class="nav-a" data-nav="${k}">${icon(i)} ${l}</button>`).join('')}
       <div class="grow"></div>
-      <a class="nav-a" href="${BASE}/" target="_blank">${icon('ext')} Страница студии</a>
+      <a class="nav-a" href="${LINKS.site}" ${ext(LINKS.site)}>${icon('ext')} Страница студии</a>
       <button class="nav-a" data-logout>${icon('out')} Выйти</button>
     </aside>
     <main class="main"><div class="main-in">
-      <div class="mob-brand">${mark}<b>${esc(c.name)}</b><a class="btn icon sm ghost" href="${BASE}/" target="_blank" aria-label="Страница студии">${icon('ext', 'sm')}</a></div>
+      <div class="mob-brand">${mark}<b>${esc(c.name)}</b><a class="btn icon sm ghost" href="${LINKS.site}" ${ext(LINKS.site)} aria-label="Страница студии">${icon('ext', 'sm')}</a></div>
       <div id="view"></div>
     </div></main>
     <nav class="tabs">${NAV.map(([k, i, l]) => `<button data-nav="${k}">${icon(i)}<span>${l}</span></button>`).join('')}</nav>
@@ -634,12 +637,12 @@ function pData(el) {
       ${fld('Юрлицо или ИП', 'operator', c.legal.operator, 'placeholder="ИП Иванов Иван Иванович"')}
       <div class="grid2">${fld('ИНН', 'inn', c.legal.inn, 'inputmode="numeric"')}${fld('Почта для запросов по данным', 'email', c.legal.email, 'type="email"')}</div>
       <label class="field"><span>Хранить имя и телефон клиента после визита, дней</span><input class="input" name="retention" type="number" min="30" max="1095" value="${c.privacy.retentionDays}"></label>
-      <p class="hint" style="margin:0">Потом данные клиента стираются автоматически, а суммы и услуги остаются для отчётов. <a href="${BASE}/privacy" target="_blank" style="color:var(--accent)">Открыть политику</a></p>
+      <p class="hint" style="margin:0">Потом данные клиента стираются автоматически, а суммы и услуги остаются для отчётов. <a href="${LINKS.privacy}" ${ext(LINKS.privacy)} style="color:var(--accent)">Открыть политику</a></p>
       <button class="btn primary" style="justify-self:start" id="saveLegal">Сохранить</button></form>
     <div class="card box"><h3>Запрос клиента на удаление</h3><p class="hint">Если клиент просит удалить его данные — найдите записи по телефону и сотрите.</p>
       <div class="inline"><input class="input" id="fp" type="tel" placeholder="+7 900 000-00-00"><button class="btn" id="find">Найти</button></div><div id="found"></div></div>
-    <div class="card box"><h3>Выгрузка</h3><p class="hint">Все записи студии в таблицу (CSV, открывается в Excel). Храните файл бережно — в нём телефоны клиентов.</p>
-      <a class="btn" style="justify-self:start" href="${BASE}/api/admin/export">${icon('install', 'sm')} Скачать записи</a></div>
+    ${window.__DEMO__ ? '' : `<div class="card box"><h3>Выгрузка</h3><p class="hint">Все записи студии в таблицу (CSV, открывается в Excel). Храните файл бережно — в нём телефоны клиентов.</p>
+      <a class="btn" style="justify-self:start" href="${BASE}/api/admin/export">${icon('install', 'sm')} Скачать записи</a></div>`}
     <div class="card box"><h3>Как защищены данные</h3><ul class="muted" style="margin:0;padding-left:18px;display:grid;gap:6px;font-size:14px">
       <li>Записи вашей студии хранятся в отдельной базе — другие студии их не видят.</li>
       <li>Кабинет открывается только по вашей почте и паролю; пароль хранится в зашифрованном виде.</li>

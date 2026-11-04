@@ -7,6 +7,8 @@ import { phoneHref, tgHref, waHref } from '/core/info.js';
 const S = window.__BOOT__;
 const BASE = `/${S.slug}`;
 const API = (p, o) => api(`${BASE}/api${p}`, o);
+const LINKS = { admin: `${BASE}/admin`, privacy: `${BASE}/privacy`, ...(window.__LINKS__ || {}) };
+const ext = (href) => (href.startsWith('#') ? '' : 'target="_blank" rel="noopener"');
 applyAccent(S.theme.accent);
 
 const LS = {
@@ -18,7 +20,7 @@ const today = () => dateOf(nowMin());
 const svcById = (id) => S.services.find((s) => s.id === id);
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const pushPossible = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+const pushPossible = () => !window.__NO_PUSH__ && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
 const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
@@ -118,7 +120,7 @@ function render() {
     </div>
   </section>
 
-  <footer class="wrap foot"><span>© ${new Date().getFullYear()} ${esc(S.name)}</span><span style="display:flex;gap:18px;flex-wrap:wrap"><a href="${BASE}/privacy">Политика конфиденциальности</a><a href="${BASE}/admin">Кабинет владельца</a></span></footer>
+  <footer class="wrap foot"><span>© ${new Date().getFullYear()} ${esc(S.name)}</span><span style="display:flex;gap:18px;flex-wrap:wrap"><a href="${LINKS.privacy}">Политика конфиденциальности</a><a href="${LINKS.admin}">Кабинет владельца</a></span></footer>
 
   <div class="dock">
     <button class="btn primary" data-book>Записаться</button>
@@ -266,7 +268,7 @@ function openBooking(pre = {}) {
           <div class="row">${icon('map')}<div>${esc([S.address].filter(Boolean).join(''))}</div></div>
           <div class="total"><span>Стоимость</span><span>${esc(fmtPrice(st.svc, S.currency))}</span></div>
         </div>
-        <label class="check" style="font-size:14px;align-items:flex-start"><input type="checkbox" name="consent" ${me.consent ? 'checked' : ''}><span>Согласен(на) на обработку имени, телефона и данных об автомобиле для записи и связи. <a href="${BASE}/privacy" target="_blank" style="color:var(--accent)">Политика конфиденциальности</a></span></label>
+        <label class="check" style="font-size:14px;align-items:flex-start"><input type="checkbox" name="consent" ${me.consent ? 'checked' : ''}><span>Согласен(на) на обработку имени, телефона и данных об автомобиле для записи и связи. <a href="${LINKS.privacy}" ${ext(LINKS.privacy)} style="color:var(--accent)">Политика конфиденциальности</a></span></label>
       </form>`);
     const ph = $('[name=phone]', sh.body);
     ph.addEventListener('input', () => { const p = ph.selectionStart, l = ph.value.length; ph.value = formatPhone(ph.value); try { ph.setSelectionRange(p + ph.value.length - l, p + ph.value.length - l); } catch {} });
@@ -315,7 +317,7 @@ function showDone(b, cal) {
 /** Блок «Напомнить за сутки». Если уведомления недоступны — добавить в календарь. */
 function reminderBox(el, b, cal) {
   const hoursLeft = (toMin(b.start) - nowMin()) / 60;
-  const calBtns = `<div class="c-row"><a class="btn" href="${esc(cal.ics)}">${icon('cal')} ${isIOS() ? 'Календарь iPhone' : 'Скачать .ics'}</a><a class="btn" href="${esc(cal.google)}" target="_blank" rel="noopener">Google Календарь</a></div>`;
+  const calBtns = `<div class="c-row">${cal.ics ? `<a class="btn" href="${esc(cal.ics)}">${icon('cal')} ${isIOS() ? 'Календарь iPhone' : 'Скачать .ics'}</a>` : ''}<a class="btn" href="${esc(cal.google)}" target="_blank" rel="noopener">Google Календарь</a></div>`;
   const iosNeedsInstall = isIOS() && !isStandalone();
   if (hoursLeft < 24) {
     el.innerHTML = `<div class="remind"><div class="remind-top"><div class="remind-ico">${icon('cal')}</div><div><b>Добавьте в календарь</b><small>До визита меньше суток — сохраните запись, чтобы не забыть адрес и время.</small></div></div>${calBtns}</div>`;
@@ -379,7 +381,7 @@ async function openMy(focusToken) {
         ${b.status === 'booked' && !past ? `<div class="c-row"><button class="btn sm" data-remind>${icon('bell', 'sm')} Напоминание</button><button class="btn sm danger" data-cancel>Отменить</button></div><div class="rb"></div>` : `<div class="c-row"><button class="btn sm ghost" data-forget>${icon('trash', 'sm')} Удалить мои данные</button></div>`}
       </div>`;
     }).join('') + `<button class="btn ghost sm" data-wipe style="margin-top:8px">Стереть список записей с этого устройства</button>
-      <p class="dim" style="font-size:12px;margin:10px 0 0">Список хранится только в вашем браузере. <a href="${BASE}/privacy" target="_blank" style="text-decoration:underline">Как мы обращаемся с данными</a></p>`);
+      <p class="dim" style="font-size:12px;margin:10px 0 0">Список хранится только в вашем браузере. <a href="${LINKS.privacy}" ${ext(LINKS.privacy)} style="text-decoration:underline">Как мы обращаемся с данными</a></p>`);
   };
   draw();
   sh.body.onclick = async (e) => {
@@ -491,7 +493,7 @@ async function install() {
       : `<li>Откройте меню браузера <b>⋮</b></li><li>Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b></li>`}</ol></div>` });
 }
 function maybeShowInstall() {
-  if (isStandalone()) return;
+  if (isStandalone() || window.__DEMO__) return;
   if (isIOS()) $('#installBtn')?.classList.remove('hidden');
 }
 

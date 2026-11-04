@@ -126,28 +126,6 @@ section.block { padding: 56px 0 8px; }
 .sel-svc small { color: var(--muted); font-size: 13px; }
 .sel-svc button { color: var(--accent); font-weight: 600; font-size: 14px; }
 
-.days { display: flex; gap: 8px; overflow-x: auto; margin: 0 -22px 18px; padding: 2px 22px 4px; scrollbar-width: none; scroll-snap-type: x proximity; }
-.days::-webkit-scrollbar { display: none; }
-.day { flex: none; width: 64px; height: 78px; border-radius: 16px; background: var(--card); border: 1px solid var(--line); display: grid; place-items: center; align-content: center; gap: 2px; scroll-snap-align: start; transition: .15s; position: relative; }
-.day small { font-size: 12px; color: var(--muted); font-weight: 500; text-transform: lowercase; }
-.day b { font: 800 22px/1 var(--display); }
-.day i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-top: 4px; }
-.day.none { opacity: .38; }
-.day.none i { background: transparent; }
-.day.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.day.on small { color: inherit; opacity: .7; }
-.day.on i { background: var(--accent-ink); }
-.day.more { color: var(--muted); font-size: 13px; }
-.month-l { font-size: 13px; color: var(--muted); margin: -6px 0 10px; font-weight: 500; }
-.times { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-@media (min-width: 480px) { .times { grid-template-columns: repeat(5, 1fr); } }
-.time { height: 48px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); font-weight: 600; font-variant-numeric: tabular-nums; transition: .15s; }
-.time:hover { border-color: var(--line-2); }
-.time.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
-.note { display: flex; gap: 12px; padding: 14px 16px; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--text); font-size: 14px; line-height: 1.45; margin: 16px 0 0; }
-.note svg { color: var(--accent); margin-top: 1px; }
-.note.plain { background: var(--card); border: 1px solid var(--line); }
-.form { display: grid; gap: 14px; }
 .summary { display: grid; gap: 12px; padding: 18px; border-radius: var(--r); background: var(--card); border: 1px solid var(--line); }
 .summary .row { display: flex; gap: 12px; align-items: flex-start; font-size: 15px; }
 .summary .row svg { color: var(--muted); margin-top: 2px; }
