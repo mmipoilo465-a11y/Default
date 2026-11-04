@@ -61,18 +61,18 @@ fs.writeFileSync(D('dist/index.html'), html);
 const { makeIcon } = await import('../lib/icon.js');
 const P = D('dist/pages');
 fs.rmSync(P, { recursive: true, force: true });
-fs.mkdirSync(path.join(P, 'icons'), { recursive: true });
+fs.mkdirSync(P, { recursive: true });
 const accent = JSON.parse(fs.readFileSync(path.join(ROOT, 'studios/examples/studio.json'), 'utf8')).theme.accent;
-fs.writeFileSync(path.join(P, 'icons/icon-192.png'), makeIcon('Ваша студия', accent, 192));
-fs.writeFileSync(path.join(P, 'icons/icon-512.png'), makeIcon('Ваша студия', accent, 512));
+fs.writeFileSync(path.join(P, 'icon-192.png'), makeIcon('Ваша студия', accent, 192));
+fs.writeFileSync(path.join(P, 'icon-512.png'), makeIcon('Ваша студия', accent, 512));
 fs.writeFileSync(path.join(P, 'manifest.webmanifest'), JSON.stringify({
   name: 'Онлайн-запись', short_name: 'Запись', start_url: './', scope: './', display: 'standalone', orientation: 'portrait',
   background_color: '#0A0B0D', theme_color: '#0A0B0D', lang: 'ru',
-  icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
+  icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png' }, { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
 }, null, 2));
 const ver = Bun.hash(html).toString(36);
 fs.writeFileSync(path.join(P, 'sw.js'), `const V='zapis-${ver}';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(['./','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'])).then(()=>self.skipWaiting()))});
+self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(['./','./manifest.webmanifest','./icon-192.png','./icon-512.png'])).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith('zapis-')&&x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
 if(r.mode==='navigate'){e.respondWith(fetch(r).then(x=>{const c=x.clone();caches.open(V).then(k=>k.put('./',c));return x}).catch(()=>caches.match('./')));return}
@@ -88,8 +88,8 @@ const pageHead = `<!doctype html>
 <meta name="theme-color" content="#0A0B0D">
 <meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" type="image/png" href="icons/icon-192.png">
-<link rel="apple-touch-icon" href="icons/icon-512.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-512.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -107,5 +107,7 @@ if ('serviceWorker' in navigator) addEventListener('load', () => navigator.servi
 </html>
 `;
 fs.writeFileSync(path.join(P, 'index.html'), pageHead);
+// Страница ошибки (нужна Yandex Object Storage): просто ведёт на главную.
+fs.writeFileSync(path.join(P, 'error.html'), '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./"><title>Онлайн-запись</title><a href="./">Открыть онлайн-запись</a>\n');
 console.log('demo/dist/pages/', fs.readdirSync(P).join(', '));
 console.log('demo/dist/index.html', (html.length / 1024).toFixed(0), 'KB');
