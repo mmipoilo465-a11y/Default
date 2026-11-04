@@ -1,0 +1,23 @@
+# Приложение + Caddy (HTTPS). Запуск: deploy/install.sh или `docker compose up -d --build`
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    volumes: ["./data:/data"]
+    environment:
+      - NODE_ENV=production
+      - TRUST_PROXY=1
+      - VAPID_SUBJECT=mailto:${ADMIN_EMAIL:-admin@example.com}
+      - SEED_EXAMPLES=${SEED_EXAMPLES:-0}
+      # - ANTHROPIC_API_KEY=...   # необязательно
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment: ["DOMAIN=${DOMAIN}"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+volumes:
+  caddy_data:

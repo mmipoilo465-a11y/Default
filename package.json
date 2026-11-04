@@ -1,0 +1,15 @@
+{
+  "name": "studio-booking",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Запись в автосервис / детейлинг: PWA для клиента + кабинет владельца",
+  "engines": { "node": ">=22.5" },
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "new-studio": "node --no-warnings scripts/new-studio.js",
+    "set-password": "node --no-warnings scripts/set-password.js",
+    "demo-data": "node --no-warnings scripts/demo-data.js",
+    "test": "node --no-warnings --test tests/*.test.js"
+  }
+}

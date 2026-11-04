@@ -1,0 +1,225 @@
+{
+  "name": "Название студии",
+  "kind": "Детейлинг-студия",
+  "tagline": "Короткое описание — одна строка",
+  "city": "Город",
+  "address": "Улица, дом",
+  "howToFind": "Как заехать и где парковаться",
+  "mapUrl": "",
+  "phone": "+7 900 000-00-00",
+  "telegram": "",
+  "whatsapp": "",
+  "paymentInfo": "Оплата после работы: наличными, картой или переводом по СБП. Для керамики — предоплата 30%.",
+  "timezone": "Europe/Moscow",
+  "currency": "₽",
+  "theme": {
+    "accent": "#C8FF2E"
+  },
+  "logo": null,
+  "hero": "/media/defaults/hero.jpg",
+  "cards": [
+    {
+      "title": "Гарантия на керамику",
+      "text": "До 3 лет. Приезжайте на бесплатную проверку покрытия каждые полгода."
+    },
+    {
+      "title": "Тёплые боксы",
+      "text": "Три бокса с освещением 6000K: видим каждый дефект ЛКП и работаем круглый год."
+    },
+    {
+      "title": "Фотоотчёт",
+      "text": "Присылаем фото до и после в Telegram — можно не ждать в студии."
+    }
+  ],
+  "gallery": [
+    {
+      "id": "w1",
+      "image": "/media/defaults/work-1.jpg",
+      "caption": "BMW X5 — полировка и керамика в 2 слоя"
+    },
+    {
+      "id": "w2",
+      "image": "/media/defaults/work-2.jpg",
+      "caption": "Porsche Macan — оклейка зоны риска"
+    },
+    {
+      "id": "w3",
+      "image": "/media/defaults/work-3.jpg",
+      "caption": "Toyota Camry — химчистка салона"
+    },
+    {
+      "id": "w4",
+      "image": "/media/defaults/work-4.jpg",
+      "caption": "Mercedes GLE — восстановление фар"
+    }
+  ],
+  "schedule": {
+    "mon": [
+      "09:00",
+      "21:00"
+    ],
+    "tue": [
+      "09:00",
+      "21:00"
+    ],
+    "wed": [
+      "09:00",
+      "21:00"
+    ],
+    "thu": [
+      "09:00",
+      "21:00"
+    ],
+    "fri": [
+      "09:00",
+      "21:00"
+    ],
+    "sat": [
+      "10:00",
+      "19:00"
+    ],
+    "sun": null
+  },
+  "daysOff": [
+    "2026-12-31",
+    "2027-01-01"
+  ],
+  "specialDays": {},
+  "boxes": [
+    {
+      "id": "b1",
+      "name": "Бокс 1"
+    },
+    {
+      "id": "b2",
+      "name": "Бокс 2"
+    },
+    {
+      "id": "wash",
+      "name": "Мойка"
+    }
+  ],
+  "services": [
+    {
+      "id": "wash",
+      "name": "Детейлинг-мойка",
+      "category": "Мойка",
+      "price": 2500,
+      "durationMin": 90,
+      "boxes": [
+        "wash"
+      ],
+      "keywords": [
+        "мойка",
+        "помыть",
+        "мыть"
+      ],
+      "description": "Двухфазная мойка, сушка, чернение резины, чистка дисков."
+    },
+    {
+      "id": "polish",
+      "name": "Полировка кузова",
+      "category": "Кузов",
+      "price": 14000,
+      "priceFrom": true,
+      "durationMin": 480,
+      "boxes": [
+        "b1",
+        "b2"
+      ],
+      "popular": true,
+      "keywords": [
+        "полировка",
+        "полирнуть",
+        "царапины"
+      ],
+      "description": "Абразивная полировка в 2–3 этапа: уходят мелкие царапины, голограммы и матовость."
+    },
+    {
+      "id": "ceramic",
+      "name": "Керамическое покрытие",
+      "category": "Кузов",
+      "price": 28000,
+      "priceFrom": true,
+      "days": 2,
+      "boxes": [
+        "b1",
+        "b2"
+      ],
+      "popular": true,
+      "keywords": [
+        "керамика",
+        "керамику",
+        "защита кузова"
+      ],
+      "description": "Подготовка, полировка и 2 слоя керамики. Машина остаётся у нас на 2 дня для полимеризации."
+    },
+    {
+      "id": "ppf",
+      "name": "Оклейка плёнкой зоны риска",
+      "category": "Кузов",
+      "price": 45000,
+      "priceFrom": true,
+      "days": 2,
+      "boxes": [
+        "b1",
+        "b2"
+      ],
+      "keywords": [
+        "плёнка",
+        "пленка",
+        "оклейка",
+        "антигравий"
+      ],
+      "description": "Капот, бампер, крылья, фары и зеркала полиуретановой плёнкой."
+    },
+    {
+      "id": "interior",
+      "name": "Химчистка салона",
+      "category": "Салон",
+      "price": 9000,
+      "priceFrom": true,
+      "durationMin": 300,
+      "boxes": [
+        "b1",
+        "b2"
+      ],
+      "popular": true,
+      "keywords": [
+        "химчистка",
+        "салон",
+        "чистка салона"
+      ],
+      "description": "Сиденья, потолок, ковры, пластик. Сушка и озонация включены."
+    },
+    {
+      "id": "headlights",
+      "name": "Полировка фар",
+      "category": "Кузов",
+      "price": 3500,
+      "durationMin": 90,
+      "boxes": [
+        "b1",
+        "b2"
+      ],
+      "keywords": [
+        "фары",
+        "фар"
+      ],
+      "description": "Убираем помутнение и желтизну, защищаем фары покрытием."
+    }
+  ],
+  "booking": {
+    "bufferMinutes": 30,
+    "stepMinutes": 30,
+    "minLeadMinutes": 60,
+    "horizonDays": 30
+  },
+  "assistant": {
+    "examples": []
+  },
+  "owner": {
+    "email": "owner@example.ru",
+    "password": "поменяйте-пароль"
+  }
+}
