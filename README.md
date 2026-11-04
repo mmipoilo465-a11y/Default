@@ -14,7 +14,7 @@
 ## Запуск
 
 ```bash
-npm start                 # http://localhost:3000/blesk/ и /garage77/
+npm start                 # http://localhost:3000/studio/ и /garage77/
 npm test                  # расчёт слотов, разбор фраз, push, изоляция студий, защита
 ```
 
@@ -22,14 +22,14 @@ npm test                  # расчёт слотов, разбор фраз, pu
 
 | Студия | Ссылка | Кабинет | Пароль |
 |---|---|---|---|
-| Детейлинг «Блеск» | `/blesk/` | owner@blesk.ru | `demo-blesk` |
-| Автосервис «Гараж 77» | `/garage77/` | owner@garage77.ru | `demo-garage` |
+| Детейлинг «Ваша студия» | `/studio/` | owner@studio.ru | `Start-2026` |
+| Автосервис «Гараж 77» | `/garage77/` | owner@garage77.ru | `Start-2026` |
 
 ## Новая студия за 5 минут
 
 ```bash
-# 1. Создать студию (копия «Блеска» с новым названием). Скрипт напечатает пароль владельца.
-npm run new-studio -- shine-spb "Shine Detailing" owner@shine.ru --from blesk \
+# 1. Создать студию (копия примера «Ваша студия» с новым названием). Скрипт напечатает пароль владельца.
+npm run new-studio -- shine-spb "Shine Detailing" owner@shine.ru --from studio \
      --phone "+7 921 000-00-00" --city "Санкт-Петербург" --address "ул. Савушкина, 12" --accent "#3DDCFF"
 
 # 2. Поправить цены, график и карточки в одном файле:
@@ -103,7 +103,7 @@ data/
 
 Новая студия на сервере:
 ```bash
-docker compose exec app node scripts/new-studio.js shine-spb "Shine Detailing" owner@shine.ru --from blesk
+docker compose exec app node scripts/new-studio.js shine-spb "Shine Detailing" owner@shine.ru --from studio
 ```
 Файлы студий лежат в `data/studios/` на сервере; правки подхватываются сразу.
 

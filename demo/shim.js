@@ -1,6 +1,6 @@
 // Демо-режим: тот же интерфейс и та же логика, что на сервере, но вместо сервера — этот модуль.
 // Он перехватывает запросы интерфейса к /<студия>/api/… и отвечает, используя общий код (lib/, core/).
-import EXAMPLE from '../studios/examples/blesk.json';
+import EXAMPLE from '../studios/examples/studio.json';
 import { normalize, publicView, applyPatch, newId } from '../lib/studios.js';
 import * as B from '../lib/bookings.js';
 import * as DB from './db.js';
@@ -12,19 +12,22 @@ import { googleCalUrl } from '../core/ics.js';
 import { privacyHtml } from '../lib/privacy.js';
 import { dateOf, addDays, fromMin, toMin, isDate } from '../core/time.js';
 import { startsForDay, findBox } from '../core/slots.js';
+import { verifyPassword, hashPassword, genRecoveryCode, normCode, passwordProblem } from './stubs/auth.js';
 
-const SLUG = 'blesk';
+const SLUG = 'studio';
 window.__SLUG__ = SLUG;
 window.__DEMO__ = true;
 window.__NO_PUSH__ = true;
 window.__LINKS__ = { admin: '#admin', privacy: '#privacy', site: '#client' };
-const PASSWORD = 'demo';
+const START_PASSWORD = 'Start-2026';
+const PW_KEY = `demo:${'studio'}:pw`;
+const currentPw = () => { try { return localStorage.getItem(PW_KEY) || START_PASSWORD; } catch { return START_PASSWORD; } };
 const CFG_KEY = `demo:${SLUG}:cfg`;
 
 function loadCfg() {
   try { const saved = JSON.parse(localStorage.getItem(CFG_KEY)); if (saved) return normalize(saved, SLUG); } catch {}
   const c = structuredClone(EXAMPLE);
-  c.owner = { email: c.owner.email, passwordHash: 'demo$' + PASSWORD };
+  c.owner = { email: c.owner.email, passwordHash: hashPassword(START_PASSWORD), mustChange: true };
   for (const [k, v] of Object.entries(window.__MEDIA__ || {})) {
     if (c.hero === k) c.hero = v;
     for (const g of c.gallery) if (g.image === k) g.image = v;
@@ -33,7 +36,7 @@ function loadCfg() {
 }
 let cfg = loadCfg();
 const saveCfg = (next) => { cfg = normalize(next, SLUG); try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch { throw Object.assign(new Error('В демо закончилось место для фото — удалите лишние'), { status: 413 }); } return cfg; };
-window.__DEMO_LOGIN__ = { email: cfg.owner.email, password: PASSWORD };
+window.__DEMO_LOGIN__ = { email: cfg.owner.email, password: currentPw() };
 
 // ——— Демо-записи, чтобы кабинет не был пустым ———
 function seed() {
@@ -73,7 +76,7 @@ function studioPayload() {
   const now = B.nowOf(cfg);
   return { ...publicView(cfg), now: fromMin(now), today: dateOf(now), status: openStatus(cfg, now), scheduleLines: scheduleLines(cfg), links: mapLinks(cfg), examples: exampleQuestions(cfg), vapidKey: '', iconV: '1' };
 }
-const adminConfig = () => { const { owner, ...rest } = cfg; return { ...rest, ownerEmail: owner.email || '' }; };
+const adminConfig = () => { const { owner, ...rest } = cfg; return { ...rest, ownerEmail: owner.email || '', ownerMustChange: !!owner.mustChange, ownerHasRecovery: !!owner.recoveryHash }; };
 const calendar = (bk) => ({ google: googleCalUrl(cfg, bk), ics: null });
 const err = (status, message, extra) => { throw Object.assign(new Error(message), { status, extra }); };
 let loggedIn = (() => { try { return sessionStorage.getItem('demo:admin') === '1'; } catch { return false; } })();
@@ -93,7 +96,15 @@ async function route(method, path, query, body) {
   }
   if (a === 'admin') {
     if (b === 'login') {
-      if (String(body.email || '').trim().toLowerCase() !== cfg.owner.email.toLowerCase() || body.password !== PASSWORD) err(401, 'Неверная почта или пароль');
+      if (String(body.email || '').trim().toLowerCase() !== cfg.owner.email.toLowerCase() || !verifyPassword(body.password, cfg.owner.passwordHash)) err(401, 'Неверная почта или пароль');
+      loggedIn = true; try { sessionStorage.setItem('demo:admin', '1'); } catch {}
+      return { ok: true };
+    }
+    if (b === 'recover') {
+      if (String(body.email || '').trim().toLowerCase() !== cfg.owner.email.toLowerCase() || !cfg.owner.recoveryHash || !verifyPassword(normCode(body.code), cfg.owner.recoveryHash)) err(401, 'Неверная почта или код восстановления');
+      const p = passwordProblem(body.password); if (p) err(400, p);
+      saveCfg({ ...cfg, owner: { ...cfg.owner, passwordHash: hashPassword(body.password), mustChange: false, recoveryHash: null } });
+      try { localStorage.setItem(PW_KEY, body.password); } catch {}
       loggedIn = true; try { sessionStorage.setItem('demo:admin', '1'); } catch {}
       return { ok: true };
     }
@@ -104,7 +115,24 @@ async function route(method, path, query, body) {
       const futureBoxIds = new Set(DB.activeBookings(SLUG, dateOf(B.nowOf(cfg)) + 'T00:00').map((x) => x.boxId));
       saveCfg(applyPatch(cfg, body, { futureBoxIds })); return { config: adminConfig() };
     }
-    if (b === 'password') err(400, 'В демо пароль не меняется');
+    if (b === 'password') {
+      if (!verifyPassword(body.old, cfg.owner.passwordHash)) err(400, 'Текущий пароль неверный');
+      const p = passwordProblem(body.password); if (p) err(400, p);
+      if (body.password === body.old) err(400, 'Новый пароль совпадает с текущим');
+      saveCfg({ ...cfg, owner: { ...cfg.owner, passwordHash: hashPassword(body.password), mustChange: false } });
+      try { localStorage.setItem(PW_KEY, body.password); } catch {}
+      return { ok: true };
+    }
+    if (b === 'email') {
+      if (!verifyPassword(body.password, cfg.owner.passwordHash)) err(400, 'Пароль неверный');
+      const email = String(body.email || '').trim(); if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) err(400, 'Проверьте адрес почты');
+      saveCfg({ ...cfg, owner: { ...cfg.owner, email } }); return { ok: true, email };
+    }
+    if (b === 'recovery-code') {
+      if (!verifyPassword(body.password, cfg.owner.passwordHash)) err(400, 'Пароль неверный');
+      const code = genRecoveryCode(); saveCfg({ ...cfg, owner: { ...cfg.owner, recoveryHash: hashPassword(normCode(code)) } }); return { code };
+    }
+    if (b === 'logout-all') return { ok: true };
     if (b === 'media') {
       const next = structuredClone(cfg);
       if (body.kind === 'hero') next.hero = body.dataUrl;

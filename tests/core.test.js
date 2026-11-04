@@ -115,7 +115,7 @@ test('web push: шифрование aes128gcm расшифровывается 
 });
 
 test('иконка без логотипа — корректный PNG', () => {
-  const png = makeIcon('Блеск', '#C8FF2E', 192);
+  const png = makeIcon('Ваша студия', '#C8FF2E', 192);
   assert.equal(png.subarray(1, 4).toString(), 'PNG');
   assert.equal(png.readUInt32BE(16), 192);
 });

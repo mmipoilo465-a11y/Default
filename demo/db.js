@@ -1,5 +1,5 @@
 // Демо-хранилище: тот же набор функций, что lib/db.js, но данные — в браузере (localStorage).
-const KEY = () => 'demo:blesk:db';
+const KEY = () => 'demo:studio:db';
 let S = load();
 function load() { try { return JSON.parse(localStorage.getItem(KEY())) || { b: [], p: [] }; } catch { return { b: [], p: [] }; } }
 function save() { try { localStorage.setItem(KEY(), JSON.stringify(S)); } catch {} }

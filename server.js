@@ -8,7 +8,7 @@ import { json, send, readJson, parseCookies, serveFile, HttpError, rateLimit, cl
 import { getStudio, saveStudio, publicView, applyPatch, listStudios, seedExamples, newId } from './lib/studios.js';
 import * as DB from './lib/db.js';
 import * as B from './lib/bookings.js';
-import { verifyPassword, hashPassword, token as newToken } from './lib/auth.js';
+import { verifyPassword, hashPassword, token as newToken, genRecoveryCode, normCode, passwordProblem } from './lib/auth.js';
 import { answerClient, exampleQuestions } from './lib/assistant-client.js';
 import { answerOwner } from './lib/assistant-owner.js';
 import { vapidKeys } from './lib/webpush.js';
@@ -151,7 +151,7 @@ const cookie = (req, slug, val, maxAge) => `${COOKIE}_${slug}=${val}; Path=/${sl
 
 function adminConfig(cfg) {
   const { owner, ...rest } = cfg;
-  return { ...rest, ownerEmail: owner.email || '' };
+  return { ...rest, ownerEmail: owner.email || '', ownerMustChange: !!owner.mustChange, ownerHasRecovery: !!owner.recoveryHash };
 }
 
 function withSummary(cfg, from, to) {
@@ -231,6 +231,23 @@ async function studioApi(req, res, cfg, parts) {
       DB.createSession(t, slug);
       return json(res, 200, { ok: true }, { 'Set-Cookie': cookie(req, slug, t, 60 * 86400) });
     }
+    if (b === 'recover' && M === 'POST') {
+      // Вход по коду восстановления, если пароль забыт. Код одноразовый.
+      rateLimit(`recover:${slug}:${clientIp(req)}`, 5, 60 * 60_000);
+      rateLimit(`recover-acct:${slug}`, 15, 60 * 60_000);
+      const body = await readJson(req, 10_000);
+      const ok = String(body.email || '').trim().toLowerCase() === String(cfg.owner.email || '').toLowerCase() && cfg.owner.recoveryHash && verifyPassword(normCode(body.code), cfg.owner.recoveryHash);
+      if (!ok) throw new HttpError(401, 'Неверная почта или код восстановления');
+      const problem = passwordProblem(body.password);
+      if (problem) throw new HttpError(400, problem);
+      const next = structuredClone(cfg);
+      next.owner = { ...next.owner, passwordHash: hashPassword(String(body.password)), mustChange: false, recoveryHash: null };
+      saveStudio(slug, next);
+      DB.dropStudioSessions(slug);
+      const t = newToken();
+      DB.createSession(t, slug);
+      return json(res, 200, { ok: true }, { 'Set-Cookie': cookie(req, slug, t, 30 * 86400) });
+    }
     const session = ownerOf(req, slug);
     if (!session) throw new HttpError(401, 'Войдите в кабинет');
     if (b === 'logout' && M === 'POST') { DB.dropSession(session); return json(res, 200, { ok: true }, { 'Set-Cookie': cookie(req, slug, '', 0) }); }
@@ -244,12 +261,37 @@ async function studioApi(req, res, cfg, parts) {
     }
     if (b === 'password' && M === 'POST') {
       const body = await readJson(req, 10_000);
+      rateLimit(`pw:${slug}`, 10, 15 * 60_000);
       if (!verifyPassword(body.old, cfg.owner.passwordHash)) throw new HttpError(400, 'Текущий пароль неверный');
-      if (String(body.password || '').length < 6) throw new HttpError(400, 'Новый пароль — минимум 6 символов');
+      const problem = passwordProblem(body.password);
+      if (problem) throw new HttpError(400, problem);
+      if (body.password === body.old) throw new HttpError(400, 'Новый пароль совпадает с текущим');
       const next = structuredClone(cfg);
-      next.owner = { ...next.owner, passwordHash: hashPassword(String(body.password)) };
-      if (body.email && /^\S+@\S+\.\S+$/.test(body.email)) next.owner.email = String(body.email).trim();
+      next.owner = { ...next.owner, passwordHash: hashPassword(String(body.password)), mustChange: false };
       saveStudio(slug, next);
+      DB.dropStudioSessions(slug, session);
+      return json(res, 200, { ok: true });
+    }
+    if (b === 'email' && M === 'POST') {
+      const body = await readJson(req, 10_000);
+      if (!verifyPassword(body.password, cfg.owner.passwordHash)) throw new HttpError(400, 'Пароль неверный');
+      const email = String(body.email || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpError(400, 'Проверьте адрес почты');
+      const next = structuredClone(cfg);
+      next.owner = { ...next.owner, email };
+      saveStudio(slug, next);
+      return json(res, 200, { ok: true, email });
+    }
+    if (b === 'recovery-code' && M === 'POST') {
+      const body = await readJson(req, 10_000);
+      if (!verifyPassword(body.password, cfg.owner.passwordHash)) throw new HttpError(400, 'Пароль неверный');
+      const code = genRecoveryCode();
+      const next = structuredClone(cfg);
+      next.owner = { ...next.owner, recoveryHash: hashPassword(normCode(code)) };
+      saveStudio(slug, next);
+      return json(res, 200, { code });
+    }
+    if (b === 'logout-all' && M === 'POST') {
       DB.dropStudioSessions(slug, session);
       return json(res, 200, { ok: true });
     }

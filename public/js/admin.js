@@ -19,21 +19,77 @@ const svcOf = (id) => st.cfg.services.find((s) => s.id === id);
 const METHODS = ['Наличные', 'Карта', 'Перевод'];
 
 // ——— Вход ———
-function renderLogin() {
-  $('#app').innerHTML = `<div class="login"><form class="card login-card" id="lf">
-    <div class="login-mark">${esc(initials(BOOT.name))}</div>
-    <div><span class="eyebrow">Кабинет владельца</span><h1>${esc(BOOT.name)}</h1></div>
+let loginPassword = ''; // нужен один раз — чтобы сразу предложить сменить стартовый пароль, не спрашивая его снова
+const pwProblem = (pw) => (pw.length < 8 ? 'Минимум 8 символов' : !/\d/.test(pw) || !/\D/.test(pw) ? 'Нужны и буквы, и цифры' : /^start-2026$/i.test(pw) ? 'Это стартовый пароль — придумайте свой' : '');
+const pwField = (label, name, auto, extra = '') => `<label class="field"><span>${label}</span><span class="pw-wrap"><input class="input" name="${name}" type="password" autocomplete="${auto}" required ${extra}><button type="button" class="pw-eye" data-eye aria-label="Показать пароль">${icon('eye')}</button></span></label>`;
+function wireEyes(root) {
+  root.addEventListener('click', (e) => { const b = e.target.closest('[data-eye]'); if (!b) return; const i = b.previousElementSibling; i.type = i.type === 'password' ? 'text' : 'password'; });
+}
+function wireStrength(input, hintEl) {
+  input.addEventListener('input', () => { const p = pwProblem(input.value); hintEl.textContent = input.value ? (p || 'Надёжный пароль') : 'Минимум 8 символов, буквы и цифры'; hintEl.style.color = input.value && !p ? 'var(--ok)' : ''; });
+}
+
+function renderLogin(view = 'login') {
+  const demo = window.__DEMO_LOGIN__;
+  const head = `<div class="login-mark">${esc(initials(BOOT.name))}</div><div><span class="eyebrow">Кабинет владельца</span><h1>${esc(BOOT.name)}</h1></div>`;
+  if (view === 'recover') {
+    $('#app').innerHTML = `<div class="login"><form class="card login-card" id="rf">${head}
+      <p class="muted" style="margin:0;font-size:14px">Введите код восстановления — его выдают вместе с паролем при подключении студии или создают в кабинете (Настройки → Доступ).</p>
+      <label class="field"><span>Почта</span><input class="input" name="email" type="email" autocomplete="username" required></label>
+      <label class="field"><span>Код восстановления</span><input class="input" name="code" autocomplete="one-time-code" placeholder="XXXX-XXXX-XXXX-XXXX" required style="text-transform:uppercase;letter-spacing:.08em"></label>
+      ${pwField('Новый пароль', 'password', 'new-password')}<small class="dim" id="rh">Минимум 8 символов, буквы и цифры</small>
+      <button class="btn primary lg block">Сменить пароль и войти</button>
+      <button type="button" class="btn ghost block" id="back">← Ко входу</button></form></div>`;
+    wireEyes($('#rf')); wireStrength($('#rf').password, $('#rh'));
+    $('#back').onclick = () => renderLogin();
+    $('#rf').onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = $('button.primary', e.target); busy(btn);
+      try { await A('/recover', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); toast('Пароль изменён. Создайте новый код восстановления в настройках.', { ms: 5000 }); await start(); }
+      catch (err) { busy(btn, false); toast(err.message, { error: true }); }
+    };
+    return;
+  }
+  $('#app').innerHTML = `<div class="login"><form class="card login-card" id="lf">${head}
     <label class="field"><span>Почта</span><input class="input" name="email" type="email" autocomplete="username" required></label>
-    <label class="field"><span>Пароль</span><input class="input" name="password" type="password" autocomplete="current-password" required></label>
+    ${pwField('Пароль', 'password', 'current-password')}
     <button class="btn primary lg block">Войти</button>
-    <a class="muted" style="font-size:14px;text-align:center" href="${LINKS.site}">← На страницу студии</a>${window.__DEMO_LOGIN__ ? `<p class="dim" style="font-size:13px;margin:0;text-align:center">Демо: ${esc(window.__DEMO_LOGIN__.email)} / ${esc(window.__DEMO_LOGIN__.password)} — уже подставлены</p>` : ''}
+    <button type="button" class="btn ghost block" id="forgot">Забыли пароль?</button>
+    <a class="muted" style="font-size:14px;text-align:center" href="${LINKS.site}">← На страницу студии</a>${demo ? `<p class="dim" style="font-size:13px;margin:0;text-align:center">Демо: ${esc(demo.email)} / ${esc(demo.password)} — уже подставлены</p>` : ''}
   </form></div>`;
-  if (window.__DEMO_LOGIN__) { $('#lf').email.value = window.__DEMO_LOGIN__.email; $('#lf').password.value = window.__DEMO_LOGIN__.password; }
+  wireEyes($('#lf'));
+  if (demo) { $('#lf').email.value = demo.email; $('#lf').password.value = demo.password; }
+  $('#forgot').onclick = () => renderLogin('recover');
   $('#lf').onsubmit = async (e) => {
     e.preventDefault();
-    const btn = $('button', e.target); busy(btn);
-    try { await A('/login', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); await start(); }
+    const btn = $('button.primary', e.target); busy(btn);
+    const body = Object.fromEntries(new FormData(e.target));
+    try { await A('/login', { method: 'POST', body }); loginPassword = body.password; await start(); }
     catch (err) { busy(btn, false); toast(err.message, { error: true }); }
+  };
+}
+
+/** После входа со стартовым паролем — сразу предлагаем придумать свой. */
+function askNewPassword() {
+  const sh = sheet({ title: 'Придумайте свой пароль' });
+  sh.setBody(`<form class="form" id="np">
+    <p class="muted" style="margin:0">Сейчас вход по стартовому паролю, который вам выдали. Замените его на свой — так в кабинет сможете зайти только вы.</p>
+    ${loginPassword ? '' : pwField('Текущий пароль', 'old', 'current-password')}
+    ${pwField('Новый пароль', 'password', 'new-password')}
+    ${pwField('Повторите новый пароль', 'repeat', 'new-password')}
+    <small class="dim" id="nh">Минимум 8 символов, буквы и цифры</small></form>`);
+  sh.setFoot(`<div style="display:flex;gap:10px"><button class="btn lg" data-close>Позже</button><button class="btn primary lg" style="flex:1" id="npSave">Сохранить пароль</button></div>`);
+  const f = $('#np', sh.body); wireEyes(f); wireStrength(f.password, $('#nh', sh.body));
+  $('#npSave', sh.foot).onclick = async (e) => {
+    const d = Object.fromEntries(new FormData(f));
+    const p = pwProblem(d.password); if (p) { toast(p, { error: true }); return; }
+    if (d.password !== d.repeat) { toast('Пароли не совпадают', { error: true }); return; }
+    const btn = e.currentTarget; busy(btn);
+    try {
+      await A('/password', { method: 'POST', body: { old: d.old || loginPassword, password: d.password } });
+      loginPassword = ''; st.cfg.ownerMustChange = false; sh.close(); toast('Пароль сохранён');
+      if (!st.cfg.ownerHasRecovery) { st.view = 'settings'; st.setTab = 'access'; draw(); }
+    } catch (err) { busy(btn, false); toast(err.message, { error: true }); }
   };
 }
 
@@ -669,23 +725,57 @@ function pData(el) {
 }
 
 function pAccess(el) {
-  const link = `${location.origin}${BASE}/`;
+  const link = `${location.origin}${location.pathname.replace(/admin\/?$/, '')}`;
   el.innerHTML = `<div class="card box"><h3>Ссылка для клиентов</h3><p class="hint">Отправьте в мессенджер, поставьте в профиль на картах и в соцсетях.</p>
-      <div class="link-box"><code>${esc(link)}</code><button class="btn sm primary" id="copy">Скопировать</button></div></div>
-    <div class="card box"><h3>Кабинет на телефоне</h3><p class="hint">Откройте эту страницу на телефоне и добавьте на главный экран: в Safari — «Поделиться» → «На экран Домой», в Chrome — меню → «Установить приложение».</p></div>
-    <form class="card box" id="pf"><h3>Почта и пароль</h3>
-      ${fld('Почта для входа', 'email', st.cfg.ownerEmail, 'type="email" autocomplete="username"')}
-      <div class="grid2">${fld('Текущий пароль', 'old', '', 'type="password" autocomplete="current-password" required')}${fld('Новый пароль', 'password', '', 'type="password" autocomplete="new-password" minlength="6" required')}</div>
+      <div class="link-box"><code>${esc(window.__DEMO__ ? 'появится после размещения на сервере' : link)}</code><button class="btn sm primary" id="copy" ${window.__DEMO__ ? 'disabled' : ''}>Скопировать</button></div></div>
+    <form class="card box" id="pf"><h3>Пароль</h3>
+      ${st.cfg.ownerMustChange ? `<div class="note" style="margin:0;background:color-mix(in srgb,var(--warn) 14%,transparent)">${icon('bell')}<span>Сейчас стоит стартовый пароль. Замените его на свой.</span></div>` : ''}
+      ${pwField('Текущий пароль', 'old', 'current-password')}
+      <div class="grid2">${pwField('Новый пароль', 'password', 'new-password')}${pwField('Повторите новый', 'repeat', 'new-password')}</div>
+      <small class="dim" id="ph">Минимум 8 символов, буквы и цифры</small>
       <button class="btn primary" style="justify-self:start">Сменить пароль</button>
       <p class="hint" style="margin:0">После смены пароля другие устройства выйдут из кабинета.</p></form>
-    <button class="btn danger" data-logout style="justify-self:start">${icon('out', 'sm')} Выйти из кабинета</button>`;
+    <form class="card box" id="ef"><h3>Почта для входа</h3>
+      <div class="grid2">${fld('Новая почта', 'email', st.cfg.ownerEmail, 'type="email" autocomplete="username" required')}${pwField('Пароль для подтверждения', 'password', 'current-password')}</div>
+      <button class="btn" style="justify-self:start">Сохранить почту</button></form>
+    <form class="card box" id="cf"><h3>Код восстановления</h3>
+      <p class="hint">Если забудете пароль, войдёте по этому коду. Он одноразовый; новый код отменяет старый. ${st.cfg.ownerHasRecovery ? 'Код уже создан.' : '<b style="color:var(--warn)">Код ещё не создан.</b>'}</p>
+      <div class="inline">${pwField('Пароль для подтверждения', 'password', 'current-password')}</div>
+      <button class="btn" style="justify-self:start">${st.cfg.ownerHasRecovery ? 'Создать новый код' : 'Создать код'}</button>
+      <div id="codeBox"></div></form>
+    <div class="card box"><h3>Устройства</h3><p class="hint">Если входили с чужого телефона или компьютера — выйдите там удалённо.</p>
+      <div class="actions"><button class="btn" id="outAll">Выйти на всех других устройствах</button><button class="btn danger" data-logout>${icon('out', 'sm')} Выйти здесь</button></div></div>
+    <div class="card box"><h3>Кабинет на телефоне</h3><p class="hint">Откройте кабинет на телефоне и добавьте на главный экран: в Safari — «Поделиться» → «На экран Домой», в Chrome — меню → «Установить приложение».</p></div>`;
+  wireEyes(el);
+  wireStrength($('#pf', el).password, $('#ph', el));
   $('#copy', el).onclick = async () => { try { await navigator.clipboard.writeText(link); toast('Ссылка скопирована'); } catch { toast(link); } };
   $('#pf', el).onsubmit = async (e) => {
     e.preventDefault();
-    const btn = $('button', e.target); busy(btn);
-    try { await A('/password', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); toast('Пароль изменён'); e.target.reset(); st.cfg = (await A('/config')).config; }
+    const d = Object.fromEntries(new FormData(e.target));
+    const p = pwProblem(d.password); if (p) { toast(p, { error: true }); return; }
+    if (d.password !== d.repeat) { toast('Пароли не совпадают', { error: true }); return; }
+    const btn = $('button.primary', e.target); busy(btn);
+    try { await A('/password', { method: 'POST', body: { old: d.old, password: d.password } }); toast('Пароль изменён'); st.cfg = (await A('/config')).config; drawSettings(); }
+    catch (err) { toast(err.message, { error: true }); busy(btn, false); }
+  };
+  $('#ef', el).onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('button.btn:not(.pw-eye)', e.target); busy(btn);
+    try { const r = await A('/email', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) }); st.cfg.ownerEmail = r.email; e.target.password.value = ''; toast('Почта для входа изменена'); }
     catch (err) { toast(err.message, { error: true }); } finally { busy(btn, false); }
   };
+  $('#cf', el).onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $('button.btn:not(.pw-eye)', e.target); busy(btn);
+    try {
+      const r = await A('/recovery-code', { method: 'POST', body: Object.fromEntries(new FormData(e.target)) });
+      st.cfg.ownerHasRecovery = true; e.target.password.value = '';
+      $('#codeBox', el).innerHTML = `<div class="note" style="margin:0;flex-direction:column;gap:10px"><span>Сохраните код — больше он не покажется:</span>
+        <div class="link-box"><code style="color:var(--text);font-size:17px;letter-spacing:.06em">${esc(r.code)}</code><button type="button" class="btn sm primary" id="cc">Скопировать</button></div></div>`;
+      $('#cc', el).onclick = async () => { try { await navigator.clipboard.writeText(r.code); toast('Код скопирован'); } catch { toast(r.code, { ms: 8000 }); } };
+    } catch (err) { toast(err.message, { error: true }); } finally { busy(btn, false); }
+  };
+  $('#outAll', el).onclick = async (e) => { busy(e.currentTarget); try { await A('/logout-all', { method: 'POST' }); toast('Другие устройства вышли из кабинета'); } catch (err) { toast(err.message, { error: true }); } finally { busy(e.currentTarget, false); } };
 }
 
 // ——— Старт ———
@@ -695,6 +785,7 @@ async function start() {
     st.cfg = r.config; st.today = r.today; st.date = st.date || r.today;
     applyAccent(st.cfg.theme.accent);
     renderShell();
+    if (st.cfg.ownerMustChange) askNewPassword();
   } catch (e) {
     if (e.status === 401) renderLogin();
     else { $('#app').innerHTML = `<div class="login"><div class="card login-card"><h3>Нет связи</h3><p class="muted">${esc(e.message)}</p><button class="btn" id="reload">Обновить</button></div></div>`; $('#reload').onclick = () => location.reload(); }

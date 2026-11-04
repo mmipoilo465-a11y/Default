@@ -14,7 +14,7 @@ const file = path.join(STUDIOS_DIR, `${slug}.json`);
 if (!fs.existsSync(file)) { console.error('Нет такой студии:', file); process.exit(1); }
 const cfg = JSON.parse(fs.readFileSync(file, 'utf8'));
 const password = pw || genPassword();
-cfg.owner = { ...(cfg.owner || {}), passwordHash: hashPassword(password) };
+cfg.owner = { ...(cfg.owner || {}), passwordHash: hashPassword(password), mustChange: !pw };
 delete cfg.owner.password;
 if (email) cfg.owner.email = email;
 fs.writeFileSync(file, JSON.stringify(cfg, null, 2) + '\n');

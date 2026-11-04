@@ -11,40 +11,230 @@
   "paymentInfo": "Оплата после выполнения работ картой, наличными или по СБП. Запчасти можно привезти свои.",
   "timezone": "Europe/Moscow",
   "currency": "₽",
-  "theme": { "accent": "#FF6B2C" },
+  "theme": {
+    "accent": "#FF6B2C"
+  },
   "logo": null,
   "hero": "/media/defaults/hero.jpg",
   "cards": [
-    { "title": "Согласуем каждую работу", "text": "Сначала диагностика и смета — делаем только то, что вы одобрили." },
-    { "title": "Гарантия 6 месяцев", "text": "На все работы и запчасти, купленные у нас." },
-    { "title": "Комната ожидания", "text": "Кофе, Wi-Fi и окно в цех — можно смотреть, как работает мастер." }
+    {
+      "title": "Согласуем каждую работу",
+      "text": "Сначала диагностика и смета — делаем только то, что вы одобрили."
+    },
+    {
+      "title": "Гарантия 6 месяцев",
+      "text": "На все работы и запчасти, купленные у нас."
+    },
+    {
+      "title": "Комната ожидания",
+      "text": "Кофе, Wi-Fi и окно в цех — можно смотреть, как работает мастер."
+    }
   ],
   "gallery": [
-    { "id": "w1", "image": "/media/defaults/work-5.jpg", "caption": "Kia Rio — замена ремня ГРМ" },
-    { "id": "w2", "image": "/media/defaults/work-6.jpg", "caption": "VW Tiguan — ТО-60 000" },
-    { "id": "w3", "image": "/media/defaults/work-2.jpg", "caption": "Hyundai Solaris — ремонт подвески" }
+    {
+      "id": "w1",
+      "image": "/media/defaults/work-5.jpg",
+      "caption": "Kia Rio — замена ремня ГРМ"
+    },
+    {
+      "id": "w2",
+      "image": "/media/defaults/work-6.jpg",
+      "caption": "VW Tiguan — ТО-60 000"
+    },
+    {
+      "id": "w3",
+      "image": "/media/defaults/work-2.jpg",
+      "caption": "Hyundai Solaris — ремонт подвески"
+    }
   ],
   "schedule": {
-    "mon": ["09:00", "20:00"], "tue": ["09:00", "20:00"], "wed": ["09:00", "20:00"], "thu": ["09:00", "20:00"],
-    "fri": ["09:00", "20:00"], "sat": ["10:00", "18:00"], "sun": ["10:00", "18:00"]
+    "mon": [
+      "09:00",
+      "20:00"
+    ],
+    "tue": [
+      "09:00",
+      "20:00"
+    ],
+    "wed": [
+      "09:00",
+      "20:00"
+    ],
+    "thu": [
+      "09:00",
+      "20:00"
+    ],
+    "fri": [
+      "09:00",
+      "20:00"
+    ],
+    "sat": [
+      "10:00",
+      "18:00"
+    ],
+    "sun": [
+      "10:00",
+      "18:00"
+    ]
   },
   "daysOff": [],
   "specialDays": {},
   "boxes": [
-    { "id": "lift1", "name": "Подъёмник 1" },
-    { "id": "lift2", "name": "Подъёмник 2" },
-    { "id": "align", "name": "Стенд развал-схождения" }
+    {
+      "id": "lift1",
+      "name": "Подъёмник 1"
+    },
+    {
+      "id": "lift2",
+      "name": "Подъёмник 2"
+    },
+    {
+      "id": "align",
+      "name": "Стенд развал-схождения"
+    }
   ],
   "services": [
-    { "id": "oil", "name": "Замена масла и фильтра", "category": "ТО", "price": 1200, "durationMin": 40, "boxes": ["lift1", "lift2"], "popular": true, "keywords": ["масло", "масла"], "description": "Работа без стоимости масла. Проверим уровни жидкостей бесплатно." },
-    { "id": "to", "name": "Плановое ТО", "category": "ТО", "price": 4500, "priceFrom": true, "durationMin": 150, "boxes": ["lift1", "lift2"], "popular": true, "keywords": ["то", "техобслуживание", "обслуживание"], "description": "По регламенту производителя, с отметкой в сервисной книжке." },
-    { "id": "diag", "name": "Компьютерная диагностика", "category": "Диагностика", "price": 1500, "durationMin": 60, "boxes": ["lift1", "lift2"], "popular": true, "keywords": ["диагностика", "ошибки", "чек"], "description": "Считываем ошибки всех блоков, даём письменное заключение." },
-    { "id": "alignment", "name": "Развал-схождение", "category": "Ходовая", "price": 2200, "durationMin": 60, "boxes": ["align"], "keywords": ["развал", "схождение", "сход развал", "тянет"], "description": "3D-стенд, распечатка до и после." },
-    { "id": "brakes", "name": "Замена тормозных колодок", "category": "Ходовая", "price": 1800, "priceFrom": true, "durationMin": 60, "boxes": ["lift1", "lift2"], "keywords": ["колодки", "тормоза", "тормозные"], "description": "Цена за ось, работа." },
-    { "id": "timing", "name": "Замена ремня ГРМ", "category": "Двигатель", "price": 9000, "priceFrom": true, "durationMin": 360, "boxes": ["lift1", "lift2"], "keywords": ["грм", "ремень"], "description": "С роликами и помпой — по согласованию." },
-    { "id": "engine", "name": "Капитальный ремонт двигателя", "category": "Двигатель", "price": 60000, "priceFrom": true, "days": 5, "boxes": ["lift2"], "keywords": ["капиталка", "капремонт", "двигатель", "мотор"], "description": "Срок — от 5 рабочих дней, точно скажем после дефектовки." }
+    {
+      "id": "oil",
+      "name": "Замена масла и фильтра",
+      "category": "ТО",
+      "price": 1200,
+      "durationMin": 40,
+      "boxes": [
+        "lift1",
+        "lift2"
+      ],
+      "popular": true,
+      "keywords": [
+        "масло",
+        "масла"
+      ],
+      "description": "Работа без стоимости масла. Проверим уровни жидкостей бесплатно."
+    },
+    {
+      "id": "to",
+      "name": "Плановое ТО",
+      "category": "ТО",
+      "price": 4500,
+      "priceFrom": true,
+      "durationMin": 150,
+      "boxes": [
+        "lift1",
+        "lift2"
+      ],
+      "popular": true,
+      "keywords": [
+        "то",
+        "техобслуживание",
+        "обслуживание"
+      ],
+      "description": "По регламенту производителя, с отметкой в сервисной книжке."
+    },
+    {
+      "id": "diag",
+      "name": "Компьютерная диагностика",
+      "category": "Диагностика",
+      "price": 1500,
+      "durationMin": 60,
+      "boxes": [
+        "lift1",
+        "lift2"
+      ],
+      "popular": true,
+      "keywords": [
+        "диагностика",
+        "ошибки",
+        "чек"
+      ],
+      "description": "Считываем ошибки всех блоков, даём письменное заключение."
+    },
+    {
+      "id": "alignment",
+      "name": "Развал-схождение",
+      "category": "Ходовая",
+      "price": 2200,
+      "durationMin": 60,
+      "boxes": [
+        "align"
+      ],
+      "keywords": [
+        "развал",
+        "схождение",
+        "сход развал",
+        "тянет"
+      ],
+      "description": "3D-стенд, распечатка до и после."
+    },
+    {
+      "id": "brakes",
+      "name": "Замена тормозных колодок",
+      "category": "Ходовая",
+      "price": 1800,
+      "priceFrom": true,
+      "durationMin": 60,
+      "boxes": [
+        "lift1",
+        "lift2"
+      ],
+      "keywords": [
+        "колодки",
+        "тормоза",
+        "тормозные"
+      ],
+      "description": "Цена за ось, работа."
+    },
+    {
+      "id": "timing",
+      "name": "Замена ремня ГРМ",
+      "category": "Двигатель",
+      "price": 9000,
+      "priceFrom": true,
+      "durationMin": 360,
+      "boxes": [
+        "lift1",
+        "lift2"
+      ],
+      "keywords": [
+        "грм",
+        "ремень"
+      ],
+      "description": "С роликами и помпой — по согласованию."
+    },
+    {
+      "id": "engine",
+      "name": "Капитальный ремонт двигателя",
+      "category": "Двигатель",
+      "price": 60000,
+      "priceFrom": true,
+      "days": 5,
+      "boxes": [
+        "lift2"
+      ],
+      "keywords": [
+        "капиталка",
+        "капремонт",
+        "двигатель",
+        "мотор"
+      ],
+      "description": "Срок — от 5 рабочих дней, точно скажем после дефектовки."
+    }
   ],
-  "booking": { "bufferMinutes": 15, "stepMinutes": 30, "minLeadMinutes": 60, "horizonDays": 30 },
-  "assistant": { "examples": ["Когда ближайшее окно?", "Сколько стоит замена масла?", "Как вас найти?"] },
-  "owner": { "email": "owner@garage77.ru", "password": "demo-garage" }
+  "booking": {
+    "bufferMinutes": 15,
+    "stepMinutes": 30,
+    "minLeadMinutes": 60,
+    "horizonDays": 30
+  },
+  "assistant": {
+    "examples": [
+      "Когда ближайшее окно?",
+      "Сколько стоит замена масла?",
+      "Как вас найти?"
+    ]
+  },
+  "owner": {
+    "email": "owner@garage77.ru",
+    "password": "Start-2026",
+    "mustChange": true
+  }
 }

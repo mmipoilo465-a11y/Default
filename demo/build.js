@@ -46,7 +46,7 @@ body.demo .top { top: 36px; }
 #app.privacy p, #app.privacy li { color: #C9CDD3; line-height: 1.6; margin: 0; }
 #app.privacy ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
 `;
-const html = `<title>Блеск — онлайн-запись</title>
+const html = `<title>Онлайн-запись в студию</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="theme-color" content="#0A0B0D">
 <style>${css}</style>

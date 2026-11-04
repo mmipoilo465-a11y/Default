@@ -33,103 +33,132 @@ async function slot(slug, service) {
 }
 
 test('владелец одной студии не видит и не меняет данные другой', async () => {
-  const blesk = await login('blesk', 'owner@blesk.ru', 'demo-blesk');
+  const own = await login('studio', 'owner@studio.ru', 'Start-2026');
   const s = await slot('garage77', 'oil');
   const created = await (await fetch(`${U}/garage77/api/bookings`, J({ serviceId: 'oil', ...s, name: 'Клиент Гаража', phone: '+7 921 111-22-33', consent: true }))).json();
   const gToken = created.booking.token;
 
-  // Сессия «Блеска», подставленная под имя cookie «Гаража», не пускает в кабинет «Гаража»
-  const forged = blesk.replace('sb_owner_blesk', 'sb_owner_garage77');
+  // Сессия «Студии», подставленная под имя cookie «Гаража», не пускает в кабинет «Гаража»
+  const forged = own.replace('sb_owner_studio', 'sb_owner_garage77');
   assert.equal((await fetch(`${U}/garage77/api/admin/bookings`, { headers: { cookie: forged } })).status, 401);
-  assert.equal((await fetch(`${U}/garage77/api/admin/config`, { headers: { cookie: blesk } })).status, 401);
+  assert.equal((await fetch(`${U}/garage77/api/admin/config`, { headers: { cookie: own } })).status, 401);
 
-  // Токен записи «Гаража» не работает в «Блеске»
-  assert.equal((await fetch(`${U}/blesk/api/bookings/${gToken}`)).status, 404);
+  // Токен записи «Гаража» не работает в «Студии»
+  assert.equal((await fetch(`${U}/studio/api/bookings/${gToken}`)).status, 404);
 
-  // id записи «Гаража» недоступен из кабинета «Блеска»
-  const garage = await login('garage77', 'owner@garage77.ru', 'demo-garage');
+  // id записи «Гаража» недоступен из кабинета «Студии»
+  const garage = await login('garage77', 'owner@garage77.ru', 'Start-2026');
   const list = await (await fetch(`${U}/garage77/api/admin/bookings?from=${s.date}&to=${s.date}`, { headers: { cookie: garage } })).json();
   const id = list.bookings.find((b) => b.token === gToken).id;
-  assert.equal((await fetch(`${U}/blesk/api/admin/bookings/${id}`, { headers: { cookie: blesk } })).status, 404);
-  const p = await fetch(`${U}/blesk/api/admin/bookings/${id}`, { ...J({ status: 'cancelled' }, blesk), method: 'PATCH' });
+  assert.equal((await fetch(`${U}/studio/api/admin/bookings/${id}`, { headers: { cookie: own } })).status, 404);
+  const p = await fetch(`${U}/studio/api/admin/bookings/${id}`, { ...J({ status: 'cancelled' }, own), method: 'PATCH' });
   assert.equal(p.status, 404);
 
-  // В выгрузке и списке «Блеска» нет клиентов «Гаража»
-  const csv = await (await fetch(`${U}/blesk/api/admin/export`, { headers: { cookie: blesk } })).text();
+  // В выгрузке и списке «Студии» нет клиентов «Гаража»
+  const csv = await (await fetch(`${U}/studio/api/admin/export`, { headers: { cookie: own } })).text();
   assert.ok(!csv.includes('Клиент Гаража'));
-  const found = await (await fetch(`${U}/blesk/api/admin/privacy/find`, J({ phone: '+79211112233' }, blesk))).json();
+  const found = await (await fetch(`${U}/studio/api/admin/privacy/find`, J({ phone: '+79211112233' }, own))).json();
   assert.equal(found.bookings.length, 0);
 
   // Базы лежат в разных файлах
   assert.ok(fs.existsSync(path.join(DATA, 'db', 'garage77.db')));
-  assert.ok(fs.existsSync(path.join(DATA, 'db', 'blesk.db')));
+  assert.ok(fs.existsSync(path.join(DATA, 'db', 'studio.db')));
 });
 
 test('без согласия на обработку данных онлайн-запись не создаётся', async () => {
-  const s = await slot('blesk', 'wash');
-  const r = await fetch(`${U}/blesk/api/bookings`, J({ serviceId: 'wash', ...s, name: 'Иван', phone: '+79160000000' }));
+  const s = await slot('studio', 'wash');
+  const r = await fetch(`${U}/studio/api/bookings`, J({ serviceId: 'wash', ...s, name: 'Иван', phone: '+79160000000' }));
   assert.equal(r.status, 400);
 });
 
 test('клиент может удалить свои данные из отменённой записи', async () => {
-  const s = await slot('blesk', 'wash');
-  const { booking } = await (await fetch(`${U}/blesk/api/bookings`, J({ serviceId: 'wash', ...s, name: 'Анна', phone: '+79160000001', car: 'Kia', consent: true }))).json();
-  assert.equal((await fetch(`${U}/blesk/api/bookings/${booking.token}/forget`, J({}))).status, 400); // активную — нельзя
-  await fetch(`${U}/blesk/api/bookings/${booking.token}/cancel`, J({}));
-  assert.equal((await fetch(`${U}/blesk/api/bookings/${booking.token}/forget`, J({}))).status, 200);
-  const after = await (await fetch(`${U}/blesk/api/bookings/${booking.token}`)).json();
+  const s = await slot('studio', 'wash');
+  const { booking } = await (await fetch(`${U}/studio/api/bookings`, J({ serviceId: 'wash', ...s, name: 'Анна', phone: '+79160000001', car: 'Kia', consent: true }))).json();
+  assert.equal((await fetch(`${U}/studio/api/bookings/${booking.token}/forget`, J({}))).status, 400); // активную — нельзя
+  await fetch(`${U}/studio/api/bookings/${booking.token}/cancel`, J({}));
+  assert.equal((await fetch(`${U}/studio/api/bookings/${booking.token}/forget`, J({}))).status, 200);
+  const after = await (await fetch(`${U}/studio/api/bookings/${booking.token}`)).json();
   assert.equal(after.booking.clientName, '');
   assert.equal(after.booking.car, '');
 });
 
 test('запросы с чужих сайтов и не-JSON отклоняются', async () => {
-  const s = await slot('blesk', 'wash');
+  const s = await slot('studio', 'wash');
   const body = JSON.stringify({ serviceId: 'wash', ...s, name: 'X', phone: '+79160000002', consent: true });
-  assert.equal((await fetch(`${U}/blesk/api/bookings`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body })).status, 415);
-  assert.equal((await fetch(`${U}/blesk/api/bookings`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://evil.example' }, body })).status, 403);
+  assert.equal((await fetch(`${U}/studio/api/bookings`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body })).status, 415);
+  assert.equal((await fetch(`${U}/studio/api/bookings`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'https://evil.example' }, body })).status, 403);
 });
 
 test('страницы отдают защитные заголовки, кабинет не индексируется', async () => {
-  const r = await fetch(`${U}/blesk/`);
+  const r = await fetch(`${U}/studio/`);
   const csp = r.headers.get('content-security-policy');
   assert.match(csp, /frame-ancestors 'none'/);
   assert.match(csp, /script-src 'self' 'nonce-/);
   assert.equal(r.headers.get('x-content-type-options'), 'nosniff');
   assert.equal(r.headers.get('x-frame-options'), 'DENY');
   const html = await r.text();
-  assert.ok(!html.includes('passwordHash') && !html.includes('owner@blesk.ru'), 'данные владельца не попадают на страницу');
-  const a = await fetch(`${U}/blesk/admin`);
+  assert.ok(!html.includes('passwordHash') && !html.includes('owner@studio.ru'), 'данные владельца не попадают на страницу');
+  const a = await fetch(`${U}/studio/admin`);
   assert.match(a.headers.get('x-robots-tag'), /noindex/);
-  const studio = await (await fetch(`${U}/blesk/api/studio`)).text();
+  const studio = await (await fetch(`${U}/studio/api/studio`)).text();
   assert.ok(!studio.includes('passwordHash') && !studio.includes('"owner"'));
 });
 
 test('cookie кабинета: HttpOnly, SameSite=Strict, только для своей студии', async () => {
-  const r = await fetch(`${U}/blesk/api/admin/login`, J({ email: 'owner@blesk.ru', password: 'demo-blesk' }));
+  const r = await fetch(`${U}/studio/api/admin/login`, J({ email: 'owner@studio.ru', password: 'Start-2026' }));
   const c = r.headers.get('set-cookie');
   assert.match(c, /HttpOnly/);
   assert.match(c, /SameSite=Strict/);
-  assert.match(c, /Path=\/blesk\//);
+  assert.match(c, /Path=\/studio\//);
 });
 
 test('загрузка «картинки», которая не является картинкой, отклоняется', async () => {
-  const cookie = await login('blesk', 'owner@blesk.ru', 'demo-blesk');
+  const cookie = await login('studio', 'owner@studio.ru', 'Start-2026');
   const fake = 'data:image/png;base64,' + Buffer.from('<script>alert(1)</script>').toString('base64');
-  const r = await fetch(`${U}/blesk/api/admin/media`, J({ kind: 'gallery-new', dataUrl: fake }, cookie));
+  const r = await fetch(`${U}/studio/api/admin/media`, J({ kind: 'gallery-new', dataUrl: fake }, cookie));
   assert.equal(r.status, 400);
 });
 
 test('сессии хранятся только в виде хэша', async () => {
-  const cookie = await login('blesk', 'owner@blesk.ru', 'demo-blesk');
+  const cookie = await login('studio', 'owner@studio.ru', 'Start-2026');
   const tokenValue = cookie.split('=')[1];
   const raw = fs.readFileSync(path.join(DATA, 'system.db'));
   assert.ok(!raw.includes(Buffer.from(tokenValue)));
 });
 
 test('страница политики конфиденциальности есть у каждой студии', async () => {
-  for (const slug of ['blesk', 'garage77']) {
+  for (const slug of ['studio', 'garage77']) {
     const r = await fetch(`${U}/${slug}/privacy`);
     assert.equal(r.status, 200);
     assert.match(await r.text(), /Политика обработки персональных данных/);
   }
+});
+
+test('стартовый пароль, смена пароля, код восстановления', async () => {
+  const s1 = await login('garage77', 'owner@garage77.ru', 'Start-2026');
+  let cfg = (await (await fetch(`${U}/garage77/api/admin/config`, { headers: { cookie: s1 } })).json()).config;
+  assert.equal(cfg.ownerMustChange, true);
+  // слабый и неверный
+  assert.equal((await fetch(`${U}/garage77/api/admin/password`, J({ old: 'Start-2026', password: '123' }, s1))).status, 400);
+  assert.equal((await fetch(`${U}/garage77/api/admin/password`, J({ old: 'wrong', password: 'Garage-77-ok' }, s1))).status, 400);
+  // вторая сессия, затем смена пароля: вторая выходит, текущая остаётся
+  const s2 = await login('garage77', 'owner@garage77.ru', 'Start-2026');
+  assert.equal((await fetch(`${U}/garage77/api/admin/password`, J({ old: 'Start-2026', password: 'Garage-77-ok' }, s1))).status, 200);
+  assert.equal((await fetch(`${U}/garage77/api/admin/config`, { headers: { cookie: s2 } })).status, 401);
+  cfg = (await (await fetch(`${U}/garage77/api/admin/config`, { headers: { cookie: s1 } })).json()).config;
+  assert.equal(cfg.ownerMustChange, false);
+  assert.equal((await fetch(`${U}/garage77/api/admin/login`, J({ email: 'owner@garage77.ru', password: 'Start-2026' }))).status, 401);
+  // код восстановления: одноразовый
+  const { code } = await (await fetch(`${U}/garage77/api/admin/recovery-code`, J({ password: 'Garage-77-ok' }, s1))).json();
+  assert.match(code, /^[A-Z0-9]{4}(-[A-Z0-9]{4}){3}$/);
+  assert.equal((await fetch(`${U}/garage77/api/admin/recover`, J({ email: 'owner@garage77.ru', code: 'AAAA-BBBB-CCCC-DDDD', password: 'New-pass-1' }))).status, 401);
+  assert.equal((await fetch(`${U}/garage77/api/admin/recover`, J({ email: 'owner@garage77.ru', code: code.toLowerCase(), password: 'New-pass-1' }))).status, 200);
+  assert.equal((await fetch(`${U}/garage77/api/admin/recover`, J({ email: 'owner@garage77.ru', code, password: 'New-pass-2' }))).status, 401);
+  assert.equal((await fetch(`${U}/garage77/api/admin/config`, { headers: { cookie: s1 } })).status, 401); // старые сессии сброшены
+  await login('garage77', 'owner@garage77.ru', 'New-pass-1');
+  // смена почты требует пароль
+  const s3 = await login('garage77', 'owner@garage77.ru', 'New-pass-1');
+  assert.equal((await fetch(`${U}/garage77/api/admin/email`, J({ email: 'new@garage.ru', password: 'x' }, s3))).status, 400);
+  assert.equal((await fetch(`${U}/garage77/api/admin/email`, J({ email: 'new@garage.ru', password: 'New-pass-1' }, s3))).status, 200);
+  await login('garage77', 'new@garage.ru', 'New-pass-1');
 });
