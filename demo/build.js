@@ -56,4 +56,56 @@ const html = `<title>Онлайн-запись в студию</title>
 `;
 fs.mkdirSync(D('dist'), { recursive: true });
 fs.writeFileSync(D('dist/index.html'), html);
+
+// ——— Версия для GitHub Pages: устанавливается на телефон (манифест, иконки, офлайн) ———
+const { makeIcon } = await import('../lib/icon.js');
+const P = D('dist/pages');
+fs.rmSync(P, { recursive: true, force: true });
+fs.mkdirSync(path.join(P, 'icons'), { recursive: true });
+const accent = JSON.parse(fs.readFileSync(path.join(ROOT, 'studios/examples/studio.json'), 'utf8')).theme.accent;
+fs.writeFileSync(path.join(P, 'icons/icon-192.png'), makeIcon('Ваша студия', accent, 192));
+fs.writeFileSync(path.join(P, 'icons/icon-512.png'), makeIcon('Ваша студия', accent, 512));
+fs.writeFileSync(path.join(P, 'manifest.webmanifest'), JSON.stringify({
+  name: 'Онлайн-запись', short_name: 'Запись', start_url: './', scope: './', display: 'standalone', orientation: 'portrait',
+  background_color: '#0A0B0D', theme_color: '#0A0B0D', lang: 'ru',
+  icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' }, { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }],
+}, null, 2));
+const ver = Bun.hash(html).toString(36);
+fs.writeFileSync(path.join(P, 'sw.js'), `const V='zapis-${ver}';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(['./','./manifest.webmanifest','./icons/icon-192.png','./icons/icon-512.png'])).then(()=>self.skipWaiting()))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith('zapis-')&&x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET'||new URL(r.url).origin!==location.origin)return;
+if(r.mode==='navigate'){e.respondWith(fetch(r).then(x=>{const c=x.clone();caches.open(V).then(k=>k.put('./',c));return x}).catch(()=>caches.match('./')));return}
+e.respondWith(caches.match(r).then(h=>h||fetch(r)))});
+`);
+const pageHead = `<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Онлайн-запись в студию</title>
+<meta name="description" content="Запись на детейлинг и автосервис онлайн: свободное время, цены и помощник.">
+<meta name="theme-color" content="#0A0B0D">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Запись">
+<meta property="og:title" content="Онлайн-запись в студию">
+<meta property="og:description" content="Свободное время, цены и запись за минуту — без регистрации.">
+<style>${css}</style>
+</head>
+<body>
+<div id="app"></div>
+<script>window.__MEDIA__ = ${JSON.stringify(media)}; window.__CAN_INSTALL__ = true;
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {}));</script>
+<script type="module">${js.replace(/<\/script/gi, '<\\/script')}</script>
+</body>
+</html>
+`;
+fs.writeFileSync(path.join(P, 'index.html'), pageHead);
+console.log('demo/dist/pages/', fs.readdirSync(P).join(', '));
 console.log('demo/dist/index.html', (html.length / 1024).toFixed(0), 'KB');

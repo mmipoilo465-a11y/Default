@@ -493,7 +493,7 @@ async function install() {
       : `<li>Откройте меню браузера <b>⋮</b></li><li>Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b></li>`}</ol></div>` });
 }
 function maybeShowInstall() {
-  if (isStandalone() || window.__DEMO__) return;
+  if (isStandalone() || (window.__DEMO__ && !window.__CAN_INSTALL__)) return;
   if (isIOS()) $('#installBtn')?.classList.remove('hidden');
 }
 
