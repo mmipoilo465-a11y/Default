@@ -16,8 +16,8 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // Соседние приложения Atelier (docs/salon/) и Lumière (docs/lumiere/) обслуживают свои service worker
-  if (url.origin === location.origin && (url.pathname.includes('/salon/') || url.pathname.includes('/lumiere/'))) return;
+  // Соседние приложения Atelier (docs/salon/), Lumière (docs/lumiere/) и Онлайн-запись (docs/zapis/) обслуживают свои service worker
+  if (url.origin === location.origin && (url.pathname.includes('/salon/') || url.pathname.includes('/lumiere/') || url.pathname.includes('/zapis/'))) return;
   // Страница: сначала сеть (чтобы обновления приходили сразу), без сети — из кэша.
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', copy)); return r; })
