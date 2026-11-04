@@ -21,7 +21,9 @@ body{background:#0b0c0e;color:var(--fg);font-family:var(--f-body);overflow:hidde
 #bMenu{position:absolute;left:max(8px,env(safe-area-inset-left,0px));bottom:8px;z-index:3;font:500 12px var(--f-body);color:var(--fg);background:rgba(18,20,23,.78);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
 #controls{flex:none;background:var(--deck);border-top:1px solid var(--line);padding-block:10px calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px));display:grid;gap:8px}
 .row{display:grid;gap:8px}
-.row.top{grid-template-columns:1fr .8fr 1fr}
+.row.top{grid-template-columns:1fr .75fr .75fr 1fr}
+#bTilt{font-size:12px!important;flex-direction:column;gap:0!important;line-height:1.1}#bTilt small{font:500 9.5px var(--f-mono);color:var(--mute)}
+#bTilt.on{background:#14283a!important;border-color:#2f7fd0!important}#bTilt.on small{color:#7fb8f0}
 .row.bottom{grid-template-columns:1fr 1fr 1.15fr 1.15fr;height:min(15vh,104px);min-height:72px}
 #controls button{font:700 13px var(--f-body);color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;gap:6px;touch-action:none;transition:background .08s,transform .08s}
 #controls button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
@@ -102,7 +104,7 @@ body{background:#0b0c0e;color:var(--fg);font-family:var(--f-body);overflow:hidde
       <div class="sec"><h2>Локация</h2><div class="list" id="locList"></div></div>
       <div class="sec"><h2>Уровень</h2><div class="list" id="lvlList"></div></div>
       <button class="go" id="bStart" type="button">Начать экзамен</button>
-      <div class="keys">Клавиатура: <kbd>↑</kbd>/<kbd>W</kbd> газ · <kbd>↓</kbd>/<kbd>S</kbd>/<kbd>Пробел</kbd> тормоз · <kbd>←</kbd><kbd>→</kbd> руль · <kbd>Q</kbd>/<kbd>E</kbd> поворотники · <kbd>R</kbd> передача D/R</div>
+      <div class="keys">Клавиатура: <kbd>↑</kbd>/<kbd>W</kbd> газ · <kbd>↓</kbd>/<kbd>S</kbd>/<kbd>Пробел</kbd> тормоз · <kbd>←</kbd><kbd>→</kbd> руль · <kbd>Q</kbd>/<kbd>E</kbd> поворотники · <kbd>R</kbd> передача D/R<br>На телефоне: кнопка <b>«Наклон»</b> — руль наклоном корпуса влево/вправо, ровное положение при старте = прямо.</div>
     </div>
 
     <div id="fail" class="ov" hidden>
@@ -133,6 +135,7 @@ body{background:#0b0c0e;color:var(--fg);font-family:var(--f-body);overflow:hidde
     <div class="row top">
       <button type="button" id="bSigL" class="sig" aria-label="Левый поворотник"><svg viewBox="0 0 24 24"><path d="M3 12l8-7v4h10v6H11v4z" fill="currentColor"/></svg>Левый</button>
       <button type="button" id="bGear" aria-label="Передача"><span class="g act" id="gD">D</span><span class="g">/</span><span class="g" id="gR">R</span></button>
+      <button type="button" id="bTilt" aria-label="Управление наклоном телефона" aria-pressed="false">Наклон<small id="tiltLbl">выкл</small></button>
       <button type="button" id="bSigR" class="sig" aria-label="Правый поворотник">Правый<svg viewBox="0 0 24 24"><path d="M21 12l-8-7v4H3v6h10v4z" fill="currentColor"/></svg></button>
     </div>
     <div class="row bottom">
@@ -594,8 +597,8 @@ function sigSet(side){if(G.state!=="run")return;P1.sig=P1.sig===side?0:side;P1.s
 function gearToggle(){if(G.state!=="run")return;if(Math.abs(P1.v)>.3){toast("Сначала остановитесь — смена передачи только на месте");return;}P1.gear=P1.gear==="D"?"R":"D";}
 function toast(t,dur){G.msg=t;G.msgT=dur||2.4;}
 function updPlayer(dt){const p=P1,sp=p.spec;const v=p.v;
-  const maxSt=sp.steer*PI/180/(1+v*v/170);const tgt=(IN.right-IN.left)*maxSt;const steering=IN.left||IN.right;
-  const rate=(steering?1.5:2.8)/(1+Math.abs(v)/11);p.steer+=clamp(tgt-p.steer,-rate*dt,rate*dt);
+  const maxSt=sp.steer*PI/180/(1+v*v/170);const btn=IN.left||IN.right;const useT=TILT.on&&!btn;const tgt=(useT?TILT.val:(IN.right-IN.left))*maxSt;const steering=btn||(useT&&Math.abs(TILT.val)>.03);
+  const rate=(useT?3.2:steering?1.5:2.8)/(1+Math.abs(v)/11);p.steer+=clamp(tgt-p.steer,-rate*dt,rate*dt);
   let acc=0;p.brakeOn=false;
   if(p.gear==="D"){if(IN.brake){acc=-sp.brake;p.brakeOn=true;}else if(IN.gas)acc=sp.acc*(1-v/sp.vmax)*(v<3?1.1:1);else acc=-.35-.0035*v*v;
     p.v=Math.max(0,v+acc*dt);}
@@ -862,7 +865,9 @@ function render(){const c=ctx;c.setTransform(DPR,0,0,DPR,0,0);c.fillStyle=M&&!M.
     if(s.type==="light")drawLight(c,s.it,s.axis,sz*1.15,T);else drawSign(c,s.type,sz,s);c.restore();}
   c.restore();
   if(G.lvl===3)drawWeather(c,cy0);
-  drawHUD(c);}
+  drawHUD(c);
+  if(TILT.on&&G.state==="run"){const w=Math.min(220,CW*.55),x=CW/2-w/2,y=CH-14;rr(c,x,y-3,w,6,3);c.fillStyle="rgba(12,14,17,.75)";c.fill();
+    c.fillStyle="#8b949c";c.fillRect(CW/2-1,y-6,2,12);const sv=P1.steer/(P1.spec.steer*PI/180);c.fillStyle="#4aa3ff";c.beginPath();c.arc(CW/2+clamp(sv,-1,1)*w/2,y,6,0,TAU);c.fill();}}
 function drawWeather(c,cy0){const g=c.createRadialGradient(CW/2,cy0,15*CAM.z,CW/2,cy0,44*CAM.z);g.addColorStop(0,"rgba(165,172,180,0)");g.addColorStop(1,"rgba(165,172,180,.9)");
   c.fillStyle="rgba(20,26,34,.18)";c.fillRect(0,0,CW,CH);c.fillStyle=g;c.fillRect(0,0,CW,CH);
   if(RAIN.length<140)for(let i=0;i<140;i++)RAIN.push({x:Math.random()*CW,y:Math.random()*CH,s:rnd(.6,1.2)});
@@ -913,6 +918,30 @@ function drawHUD(c){const kmh=Math.abs(P1.v)*3.6;const lim=RS.lim;c.textBaseline
     c.fillStyle="#ffb21e";c.textAlign="center";c.fillText(fitText(c,G.msg,tw-20),CW/2,CH-75);c.globalAlpha=1;}}
 
 // ====================== ИГРОВОЙ ЦИКЛ ======================
+// ====================== НАКЛОН ТЕЛЕФОНА ======================
+// Руль = наклон влево/вправо (gamma в портретной ориентации). Мёртвая зона 3°, полный руль при 24°.
+const TILT={on:false,want:false,raw:null,f:0,zero:0,val:0,last:0,listening:false};
+try{TILT.want=localStorage.getItem("pdd-tilt")==="1";}catch(_){}
+function tiltAngle(e){const a=(screen.orientation&&screen.orientation.angle)||window.orientation||0;
+  if(a===90)return e.beta;if(a===-90||a===270)return -e.beta;return e.gamma;}
+function onOrient(e){if(e.gamma==null)return;const g=tiltAngle(e);TILT.last=performance.now();
+  TILT.f=TILT.raw==null?g:TILT.f+(g-TILT.f)*.35;TILT.raw=g;
+  const d=TILT.f-TILT.zero,dz=3,full=24;const m=Math.abs(d)<dz?0:(Math.abs(d)-dz)/(full-dz)*Math.sign(d);TILT.val=clamp(m,-1,1);}
+function tiltCalibrate(){if(TILT.raw!=null)TILT.zero=TILT.f;TILT.val=0;}
+function tiltSave(){try{localStorage.setItem("pdd-tilt",TILT.want?"1":"0");}catch(_){}}
+async function tiltEnable(silent){
+  if(typeof DeviceOrientationEvent==="undefined"){if(!silent)toast("Датчик наклона на этом устройстве недоступен");return false;}
+  try{if(typeof DeviceOrientationEvent.requestPermission==="function"){const r=await DeviceOrientationEvent.requestPermission();if(r!=="granted"){if(!silent)toast("Нет доступа к датчику наклона — остаются кнопки");return false;}}}
+  catch(_){if(!silent)toast("Нет доступа к датчику наклона — остаются кнопки");return false;}
+  if(!TILT.listening){window.addEventListener("deviceorientation",onOrient);TILT.listening=true;}
+  TILT.raw=null;const t0=performance.now();
+  await new Promise(res=>{const chk=()=>{if(TILT.raw!=null||performance.now()-t0>1500)res();else setTimeout(chk,80);};chk();});
+  if(TILT.raw==null){if(!silent)toast("Датчик заблокирован: откройте игру в браузере",5);return false;}
+  tiltCalibrate();TILT.on=true;if(!silent)toast("Наклон включён: ровно = прямо",3);return true;}
+function tiltDisable(){TILT.on=false;TILT.val=0;}
+$("bTilt").addEventListener("pointerdown",async e=>{e.preventDefault();
+  if(TILT.on){tiltDisable();TILT.want=false;tiltSave();toast("Наклон выключен — руль кнопками");return;}
+  TILT.want=true;tiltSave();const ok=await tiltEnable(false);if(!ok){TILT.want=false;tiltSave();}});
 function startGame(){
   M={city:makeCity,metro:makeMetro,hwy:makeHwy}[G.loc]();
   for(const p of M.parks){p.rect=parkRect(p);const r=road(M,p.r);const q=p.rect;p.spots=[];
@@ -927,7 +956,8 @@ function startGame(){
   CAM={x:P1.x,y:P1.y,h:P1.h,z:CW/26};
   G.state="run";for(let i=0;i<trafficTarget();i++)trySpawn();
   $("menu").hidden=true;$("fail").hidden=true;$("win").hidden=true;$("controls").hidden=false;
-  toast(M.name+": "+M.route[0].txt,4);}
+  toast(M.name+": "+M.route[0].txt,4);
+  if(TILT.on)tiltCalibrate();else if(TILT.want)tiltEnable(true);}
 function step(dt){T+=dt;G.t+=dt;if(G.msgT>0)G.msgT-=dt;
   updPlayer(dt);for(const a of AI)updAI(a,dt);updPeds(dt);updBirds(dt);updSpawn(dt);
   rules(dt);
@@ -955,7 +985,8 @@ $("bGear").addEventListener("pointerdown",e=>{e.preventDefault();gearToggle();})
 function syncButtons(){const bl=(T*1.6)%1<.55;const run=G.state==="run"&&P1;
   for(const [id,s] of [["bSigL",-1],["bSigR",1]]){const b=$(id);const on=run&&P1.sig===s;b.classList.toggle("on",!!on);b.classList.toggle("blink",!!on&&!bl);}
   $("bGas").classList.toggle("on",!!IN.gas);$("bBrake").classList.toggle("on",!!IN.brake);$("bLeft").classList.toggle("on",!!IN.left);$("bRight").classList.toggle("on",!!IN.right);
-  const r=run&&P1.gear==="R";$("bGear").classList.toggle("rev",!!r);$("gD").classList.toggle("act",!r);$("gR").classList.toggle("act",!!r);}
+  const r=run&&P1.gear==="R";$("bGear").classList.toggle("rev",!!r);$("gD").classList.toggle("act",!r);$("gR").classList.toggle("act",!!r);
+  const tb=$("bTilt");tb.classList.toggle("on",TILT.on);tb.setAttribute("aria-pressed",TILT.on?"true":"false");$("tiltLbl").textContent=TILT.on?(TILT.val===0?"прямо":TILT.val<0?"◀ "+Math.round(-TILT.val*100)+"%":Math.round(TILT.val*100)+"% ▶"):"выкл";}
 
 // ====================== МЕНЮ ======================
 function showMenu(){G.state="menu";$("menu").hidden=false;$("controls").hidden=true;$("fail").hidden=true;$("win").hidden=true;}
